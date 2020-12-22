@@ -1,0 +1,15 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.1.2
+Date: 2020.12.22
+  Changes:
+    - Protect against crashes when recipes are copied from machines with nothing set
+---------------------------------------------------------------------------------------------------
+Version: 1.1.1
+Date: 2020.12.22
+  Changes:
+    - Fixed __AdditionalPasteSettings__/smarts.lua:234: attempt to index local 'stack' (a nil value)
+---------------------------------------------------------------------------------------------------
+Version: 1.1.0
+Date: 2020.12.10
+  Changes:
+    - Fixed, original version would not allow me to merge two or more recipes into a requester chest.
