@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.2.1
+Date: 2021.10.28
+  Changes:
+    - Fixed inverse buffer box bug
+---------------------------------------------------------------------------------------------------
+Version: 1.2.0
+Date: 2021.07.28
+  Changes:
+    - Added per player setting to allow the choice of default Comparator used on inserters
+    - Added flying-text being displayed on settings being applied to give positive feedback
+    - Key combo added (SHIFT+ALT+Left mouse) to cut the current inserter amount in half
+---------------------------------------------------------------------------------------------------
 Version: 1.1.2
 Date: 2020.12.22
   Changes:

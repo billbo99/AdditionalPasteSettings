@@ -1,11 +1,41 @@
 local Smarts = {}
 
-local function update_stack(mtype, multiplier, stack, previous_value, recipe, speed, additive)
+local colors = {
+    white = {r = 1, g = 1, b = 1},
+    black = {r = 0, g = 0, b = 0},
+    darkgrey = {r = 0.25, g = 0.25, b = 0.25},
+    grey = {r = 0.5, g = 0.5, b = 0.5},
+    lightgrey = {r = 0.75, g = 0.75, b = 0.75},
+    red = {r = 1, g = 0, b = 0},
+    darkred = {r = 0.5, g = 0, b = 0},
+    lightred = {r = 1, g = 0.5, b = 0.5},
+    green = {r = 0, g = 1, b = 0},
+    darkgreen = {r = 0, g = 0.5, b = 0},
+    lightgreen = {r = 0.5, g = 1, b = 0.5},
+    blue = {r = 0, g = 0, b = 1},
+    darkblue = {r = 0, g = 0, b = 0.5},
+    lightblue = {r = 0.5, g = 0.5, b = 1},
+    orange = {r = 1, g = 0.55, b = 0.1},
+    yellow = {r = 1, g = 1, b = 0},
+    pink = {r = 1, g = 0, b = 1},
+    purple = {r = 0.6, g = 0.1, b = 0.6},
+    brown = {r = 0.6, g = 0.4, b = 0.1}
+}
+
+local function update_stack(mtype, multiplier, stack, previous_value, recipe, speed, additive, special)
     if mtype == "additional-paste-settings-per-stack-size" then
         if additive and previous_value ~= nil then
-            return previous_value + game.item_prototypes[stack.name].stack_size * multiplier
+            if special then
+                return previous_value * special
+            else
+                return previous_value + (game.item_prototypes[stack.name].stack_size * multiplier)
+            end
         else
-            return game.item_prototypes[stack.name].stack_size * multiplier
+            if special then
+                return game.item_prototypes[stack.name].stack_size * special
+            else
+                return game.item_prototypes[stack.name].stack_size * multiplier
+            end
         end
     elseif mtype == "additional-paste-settings-per-recipe-size" then
         local amount = 0
@@ -62,7 +92,7 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     end
 end
 
-function Smarts.clear_requester_chest(from, to, player)
+function Smarts.clear_requester_chest(from, to, player, special)
     if from == to then
         if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
             for i = 1, to.request_slot_count do
@@ -74,7 +104,7 @@ function Smarts.clear_requester_chest(from, to, player)
     end
 end
 
-function Smarts.clear_inserter_settings(from, to, player)
+function Smarts.clear_inserter_settings(from, to, player, special)
     if from == to then
         local ctrl = to.get_or_create_control_behavior()
         ctrl.logistic_condition = nil
@@ -84,7 +114,7 @@ function Smarts.clear_inserter_settings(from, to, player)
     end
 end
 
-function Smarts.assembly_to_constant_combinator(from, to, player)
+function Smarts.assembly_to_constant_combinator(from, to, player, special)
     local multiplier = settings.get_player_settings(player)["additional-paste-settings-options-combinator-multiplier-value"].value
     local mtype = settings.get_player_settings(player)["additional-paste-settings-options-combinator-multiplier-type"].value
     local additive = settings.get_player_settings(player)["additional-paste-settings-options-sumup"].value
@@ -94,6 +124,7 @@ function Smarts.assembly_to_constant_combinator(from, to, player)
 
     local current = nil
     local found = false
+    local msg = ""
     local ctrl = to.get_or_create_control_behavior()
     if recipe then
         for k = 1, #recipe.ingredients do
@@ -104,6 +135,7 @@ function Smarts.assembly_to_constant_combinator(from, to, player)
                 if s.signal ~= nil and s.signal.name == current.name then
                     amount = update_stack(mtype, multiplier, {name = current.name}, s.count, recipe, from.crafting_speed, additive)
                     ctrl.set_signal(i, {signal = {type = current.type, name = current.name}, count = amount})
+                    msg = msg .. "[img=" .. current.type .. "." .. current.name .. "] = " .. amount .. " "
                     found = true
                 end
             end
@@ -114,26 +146,32 @@ function Smarts.assembly_to_constant_combinator(from, to, player)
                     if s.signal == nil then
                         amount = update_stack(mtype, multiplier, {name = current.name}, nil, recipe, from.crafting_speed, additive)
                         ctrl.set_signal(i, {signal = {type = current.type, name = current.name}, count = amount})
+                        msg = msg .. "[img=" .. current.type .. "." .. current.name .. "] = " .. amount .. " "
                         break
                     end
                 end
             end
         end
+        to.surface.create_entity {name = "flying-text", position = to.position, text = msg, color = colors.white}
     end
 end
 
-function Smarts.assembly_to_logistic_chest(from, to, player)
+function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
     if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
         global.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = {gamer = player.index, stacks = {}}
     elseif to.prototype.logistic_mode == "storage" then
         if from.get_recipe() ~= nil then
-            to.storage_filter = game.item_prototypes[from.get_recipe().name]
+            local proto = game.item_prototypes[from.get_recipe().name]
+            if proto then
+                to.storage_filter = proto
+                to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. from.get_recipe().name .. "]", color = colors.white}
+            end
         end
     end
 end
 
-function Smarts.assembly_to_inserter(from, to, player)
+function Smarts.assembly_to_inserter(from, to, player, special)
     local ctrl = to.get_or_create_control_behavior()
     local c1 = ctrl.get_circuit_network(defines.wire_type.red)
     local c2 = ctrl.get_circuit_network(defines.wire_type.green)
@@ -153,28 +191,31 @@ function Smarts.assembly_to_inserter(from, to, player)
         local item = game.item_prototypes[product]
 
         if item ~= nil then
+            local comparator = settings.get_player_settings(player)["additional-paste-settings-options-comparator-value"].value
             local multiplier = settings.get_player_settings(player)["additional-paste-settings-options-inserter-multiplier-value"].value
             local mtype = settings.get_player_settings(player)["additional-paste-settings-options-inserter-multiplier-type"].value
             local additive = settings.get_player_settings(player)["additional-paste-settings-options-sumup"].value
-            local amount = update_stack(mtype, multiplier, item, nil, fromRecipe, from.crafting_speed, additive)
+            local amount = update_stack(mtype, multiplier, item, nil, fromRecipe, from.crafting_speed, additive, special)
             if c1 == nil and c2 == nil then
                 if ctrl.connect_to_logistic_network and ctrl.logistic_condition["condition"]["first_signal"]["name"] == product then
                     if ctrl.logistic_condition["condition"]["constant"] ~= nil then
-                        amount = update_stack(mtype, multiplier, item, ctrl.logistic_condition["condition"]["constant"], fromRecipe, from.crafting_speed, additive)
+                        amount = update_stack(mtype, multiplier, item, ctrl.logistic_condition["condition"]["constant"], fromRecipe, from.crafting_speed, additive, special)
                     end
                 else
                     ctrl.connect_to_logistic_network = true
                 end
-                ctrl.logistic_condition = {condition = {comparator = "<", first_signal = {type = "item", name = product}, constant = amount}}
+                ctrl.logistic_condition = {condition = {comparator = comparator, first_signal = {type = "item", name = product}, constant = amount}}
+                to.surface.create_entity {name = "flying-text", position = to.position, text = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount), color = colors.white}
             else
                 if ctrl.circuit_mode_of_operation == defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable and ctrl.circuit_condition["condition"]["first_signal"]["name"] == product then
                     if ctrl.logistic_condition["condition"]["constant"] ~= nil then
-                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition["condition"]["constant"], fromRecipe, from.crafting_speed, additive)
+                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition["condition"]["constant"], fromRecipe, from.crafting_speed, additive, special)
                     end
                 else
                     ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
                 end
-                ctrl.circuit_condition = {condition = {comparator = "<", first_signal = {type = "item", name = product}, constant = amount}}
+                ctrl.circuit_condition = {condition = {comparator = comparator, first_signal = {type = "item", name = product}, constant = amount}}
+                to.surface.create_entity {name = "flying-text", position = to.position, text = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount), color = colors.white}
             end
         end
     end
@@ -182,6 +223,11 @@ end
 
 function Smarts.on_hotkey_pressed(event)
     local player = game.players[event.player_index]
+    local special = nil
+
+    if event.input_name and event.input_name == "additional-paste-settings-hotkey-alt" then
+        special = 0.5
+    end
 
     if player ~= nil and player.connected then
         local from = player.entity_copy_source
@@ -192,7 +238,7 @@ function Smarts.on_hotkey_pressed(event)
             local act = Smarts.actions[key]
 
             if act ~= nil then
-                act(from, to, player)
+                act(from, to, player, special)
             end
         end
     end
@@ -273,10 +319,12 @@ function Smarts.on_vanilla_paste(event)
         end
 
         if invertPaste and recipe then
-            if result[recipe.name] ~= nil then
-                result[recipe.name].count = update_stack(mtype, multiplier, result[recipe.name], result[recipe.name].count, recipe, speed, additive)
-            else
-                result[recipe.name] = {name = recipe.name, count = update_stack(mtype, multiplier, {name = recipe.name}, recipe, speed, additive)}
+            for k, product in pairs(recipe.products) do
+                if result[product.name] ~= nil then
+                    result[product.name].count = update_stack(mtype, multiplier, result[product.name], result[product.name].count, recipe, speed, additive)
+                else
+                    result[product.name] = {name = product.name, count = update_stack(mtype, multiplier, {name = product.name}, recipe, speed, additive)}
+                end
             end
         end
 
@@ -285,9 +333,11 @@ function Smarts.on_vanilla_paste(event)
         end
 
         local i = 1
+        local msg = ""
         for k, v in pairs(result) do
             if v.count > 0 then
                 event.destination.set_request_slot(v, i)
+                msg = msg .. "[img=item." .. v.name .. "] = " .. v.count .. " "
                 i = i + 1
             end
             --     if not v or not v.count or v.count == 0 then
@@ -304,6 +354,7 @@ function Smarts.on_vanilla_paste(event)
         --     event.destination.clear_request_slot(i)
         --     i = i + 1
         -- end
+        event.destination.surface.create_entity {name = "flying-text", position = event.destination.position, text = msg, color = colors.white}
         global.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y] = nil
     end
 end
