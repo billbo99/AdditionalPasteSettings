@@ -172,6 +172,10 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
 end
 
 function Smarts.assembly_to_transport_belt(from, to, player, special)
+    if not settings.get_player_settings(player)["additional-paste-settings-paste-to-belt-enabled"].value then
+        return
+    end
+
     local ctrl = to.get_or_create_control_behavior()
     local c1 = ctrl.get_circuit_network(defines.wire_type.red)
     local c2 = ctrl.get_circuit_network(defines.wire_type.green)
@@ -385,7 +389,7 @@ function Smarts.on_vanilla_paste(event)
         local i = 1
         local msg = ""
         for k, v in pairs(result) do
-            if v.count > 0 then
+            if v and v.count and v.count > 0 then
                 event.destination.set_request_slot(v, i)
                 msg = msg .. "[img=item." .. v.name .. "] = " .. v.count .. " "
                 i = i + 1

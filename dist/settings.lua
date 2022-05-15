@@ -121,6 +121,13 @@ data:extend(
             },
             default_value = "<",
             order = "fa"
-        }
+        },
+        {
+            type = "bool-setting",
+            name = "additional-paste-settings-paste-to-belt-enabled",
+            setting_type = "runtime-per-user",
+            default_value = false,
+            order = "eb"
+        },
     }
 )
