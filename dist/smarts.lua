@@ -28,13 +28,25 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
             if special then
                 return previous_value * special
             else
-                return previous_value + (game.item_prototypes[stack.name].stack_size * multiplier)
+                if game.item_prototypes[stack.name] and game.item_prototypes[stack.name].stack_size then
+                    return previous_value + (game.item_prototypes[stack.name].stack_size * multiplier)
+                else
+                    return nil
+                end
             end
         else
             if special then
-                return game.item_prototypes[stack.name].stack_size * special
+                if game.item_prototypes[stack.name] and game.item_prototypes[stack.name].stack_size then
+                    return game.item_prototypes[stack.name].stack_size * special
+                else
+                    return nil
+                end
             else
-                return game.item_prototypes[stack.name].stack_size * multiplier
+                if game.item_prototypes[stack.name] and game.item_prototypes[stack.name].stack_size then
+                    return game.item_prototypes[stack.name].stack_size * multiplier
+                else
+                    return nil
+                end
             end
         end
     elseif mtype == "additional-paste-settings-per-recipe-size" then
