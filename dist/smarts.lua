@@ -178,6 +178,13 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
             if proto then
                 to.storage_filter = proto
                 to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. from.get_recipe().name .. "]", color = colors.white}
+            else
+                local products = from.get_recipe().products
+                if products then
+                    proto = game.item_prototypes[products[1].name]
+                    to.storage_filter = proto
+                    to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. products[1].name .. "]", color = colors.white}
+                end
             end
         end
     end
