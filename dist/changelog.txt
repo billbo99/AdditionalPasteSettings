@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.0
+Date: 2022.06.26
+  Changes:
+    - Added paste to Train Station (train-stop)
+      - Pasting multiple times will first cycle between load/unload naming standards. secondly will cycle around the products/ingredients of machines, inventory of chests or signals from combinator
+---------------------------------------------------------------------------------------------------
 Version: 1.3.3
 Date: 2022.05.20
   Bugfixes:

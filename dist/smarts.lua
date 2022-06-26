@@ -1,3 +1,7 @@
+require('util')
+
+local utils = require('utils')
+local config = require('config')
 local Smarts = {}
 
 local colors = {
@@ -117,7 +121,7 @@ function Smarts.clear_requester_chest(from, to, player, special)
 end
 
 function Smarts.clear_inserter_settings(from, to, player, special)
-    if from == to then
+    if from == to and settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value then
         local ctrl = to.get_or_create_control_behavior()
         ctrl.logistic_condition = nil
         ctrl.circuit_condition = nil
@@ -180,14 +184,124 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
                 to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. from.get_recipe().name .. "]", color = colors.white}
             else
                 local products = from.get_recipe().products
-                if products then
-                    proto = game.item_prototypes[products[1].name]
+                for _, product in pairs(products) do
+                    if product.type and product.type == "item" then
+                        proto = game.item_prototypes[product.name]
+                        break
+                    end
+                end
+                if proto then
                     to.storage_filter = proto
-                    to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. products[1].name .. "]", color = colors.white}
+                    to.surface.create_entity {name = "flying-text", position = to.position, text = "Filter applied [img=item." .. proto.name .. "]", color = colors.white}
                 end
             end
         end
     end
+end
+
+local function get_keys(t)
+    local keys={}
+    for key,_ in pairs(t) do
+        table.insert(keys, key)
+    end
+    table.sort(keys)
+    return keys
+end
+
+local function parse_signal_to_rich_text(signal_data)
+    if signal_data ~= nil then
+        local text_type = signal_data.type or "item"
+        if text_type == "virtual" then
+            text_type = "virtual-signal"
+        end
+
+        return string.format("[img=%s/%s]", text_type, signal_data.name)
+    end
+end
+
+local function rename_train_stop(station)
+    local station_name
+    local entity = global.enity_deta_data[station.unit_number]
+    local item = entity.cycle[entity.cycle_index]
+
+    if entity.mode == "Load" then station_name = utils.parse_string(config['station_name_load'], {parse_signal_to_rich_text(item), item.name}) end
+    if entity.mode == "Unload" then station_name = utils.parse_string(config['station_name_unload'], {parse_signal_to_rich_text(item), item.name}) end
+    if entity.mode == "Unload" then entity.cycle_index = entity.cycle_index + 1 end
+    if entity.mode == "Load" then entity.mode = "Unload" else entity.mode = "Load" end
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+    if station.backer_name ~= station_name then
+        station.backer_name = station_name
+        station.surface.create_entity {name = "flying-text", position = station.position, text = station.backer_name, color = colors.white}
+    end
+end
+
+local function update_entity(to, cycle)
+    global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
+    local entity = global.enity_deta_data[to.unit_number]
+
+    if entity == nil or entity.signals == nil or not table.compare(cycle, entity.cycle) then
+        entity.mode = "Load"
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    rename_train_stop(to)
+end
+
+function Smarts.constant_combinator_to_train_stop(from, to, player, special)
+    if from and not from.get_control_behavior().enabled then return end
+
+    local signals = from.get_control_behavior().parameters
+    local cycle = {}
+    for _, v in pairs(signals) do
+        if v.signal.name then
+            table.insert(cycle, v.signal)
+        end
+    end
+
+    update_entity(to, cycle)
+end
+
+function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, special)
+    if from and from.get_control_behavior().signals_last_tick == nil then return end
+
+    local signals = from.get_control_behavior().signals_last_tick
+    local cycle = {}
+    for _, v in pairs(signals) do
+        table.insert(cycle, v.signal)
+    end
+
+    update_entity(to, cycle)
+end
+
+function Smarts.container_to_train_stop(from, to, player, special)
+    if from and from.get_inventory(defines.inventory.chest) == nil then return end
+
+    local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
+    local cycle = {}
+    for _, v in pairs(inventory) do
+        table.insert(cycle, {name=v, type="item"})
+    end
+
+    update_entity(to, cycle)
+end
+
+
+function Smarts.assembly_to_train_stop(from, to, player, special)
+    if from and from.get_recipe() == nil then return end
+
+    local cycle = {}
+    local recipe = from.get_recipe()
+    for _, v in pairs(recipe.products) do
+        table.insert(cycle, v)
+    end
+    for _, v in pairs(recipe.ingredients) do
+        table.insert(cycle, v)
+    end
+
+    update_entity(to, cycle)
+
 end
 
 function Smarts.assembly_to_transport_belt(from, to, player, special)
@@ -433,6 +547,11 @@ function Smarts.on_vanilla_paste(event)
 end
 
 Smarts.actions = {
+    ["constant-combinator|train-stop"] = Smarts.constant_combinator_to_train_stop,
+    ["decider-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
+    ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
+    ["container|train-stop"] = Smarts.container_to_train_stop,
+    ["assembling-machine|train-stop"] = Smarts.assembly_to_train_stop,
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
     ["assembling-machine|logistic-container"] = Smarts.assembly_to_logistic_chest,
