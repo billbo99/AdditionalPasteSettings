@@ -240,7 +240,7 @@ local function update_entity(to, cycle)
     global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
     local entity = global.enity_deta_data[to.unit_number]
 
-    if entity == nil or entity.signals == nil or not table.compare(cycle, entity.cycle) then
+    if entity == nil or entity.cycle == nil or not table.compare(cycle, entity.cycle) then
         entity.mode = "Load"
         entity.cycle = cycle
         entity.cycle_index = 1

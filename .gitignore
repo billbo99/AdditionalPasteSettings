@@ -48,5 +48,4 @@ luac.out
 *.x86_64
 *.hex
 
-.vscode/launch.json
-.vscode/tasks.json
+.vscode
