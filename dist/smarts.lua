@@ -208,6 +208,18 @@ local function get_keys(t)
     return keys
 end
 
+local function get_chest_inventory(entity)
+    if entity and entity.valid and entity.get_inventory(defines.inventory.chest) then
+        local inventory = get_keys(entity.get_inventory(defines.inventory.chest).get_contents())
+        local cycle = {}
+        for _, v in pairs(inventory) do
+            table.insert(cycle, {name=v, type="item"})
+        end
+        return cycle
+    end
+end
+
+
 local function parse_signal_to_rich_text(signal_data)
     if signal_data ~= nil then
         local text_type = signal_data.type or "item"
@@ -276,17 +288,9 @@ function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, sp
 end
 
 function Smarts.container_to_train_stop(from, to, player, special)
-    if from and from.get_inventory(defines.inventory.chest) == nil then return end
-
-    local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
-    local cycle = {}
-    for _, v in pairs(inventory) do
-        table.insert(cycle, {name=v, type="item"})
-    end
-
-    update_entity(to, cycle)
+    local cycle = get_chest_inventory(from)
+    if #cycle > 0 then update_entity(to, cycle) end
 end
-
 
 function Smarts.assembly_to_train_stop(from, to, player, special)
     if from and from.get_recipe() == nil then return end
@@ -527,20 +531,8 @@ function Smarts.on_vanilla_paste(event)
                 msg = msg .. "[img=item." .. v.name .. "] = " .. v.count .. " "
                 i = i + 1
             end
-            --     if not v or not v.count or v.count == 0 then
-            --         -- Nothing to do here.
-            --         -- elseif i > event.destination.request_slot_count then
-            --         -- 	game.players[evt.gamer].print('Missing space in chest to paste requests')
-            --     else
-            --         event.destination.set_request_slot(v, i)
-            --         i = i + 1
-            --     end
         end
 
-        -- while i <= event.destination.request_slot_count do
-        --     event.destination.clear_request_slot(i)
-        --     i = i + 1
-        -- end
         event.destination.surface.create_entity {name = "flying-text", position = event.destination.position, text = msg, color = colors.white}
         global.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y] = nil
     end
