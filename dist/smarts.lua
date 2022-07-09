@@ -287,6 +287,43 @@ function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, sp
     update_entity(to, cycle)
 end
 
+function Smarts.container_to_simple_entity_with_owner(from, to, player, special)
+    if from and from.get_inventory(defines.inventory.chest) == nil then return end
+
+    local remote_interface
+    if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
+    if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
+
+    local interfaces = remote.interfaces[remote_interface]
+    if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return end
+
+    local rv = remote.call(remote_interface, "get_sprite", {entity=to})
+    if (not rv) then return end
+
+    local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
+    local cycle = {}
+    for _, v in pairs(inventory) do
+        table.insert(cycle, {name=v, type="item"})
+    end
+
+    global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
+    local entity = global.enity_deta_data[to.unit_number]
+
+    if entity == nil or entity.cycle == nil or not table.compare(cycle, entity.cycle) then
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    local new_sprite = entity.cycle[entity.cycle_index].type .. "/" .. entity.cycle[entity.cycle_index].name
+
+    local msg = parse_signal_to_rich_text(entity.cycle[entity.cycle_index]) .. " " .. entity.cycle[entity.cycle_index].name
+    to.surface.create_entity {name = "flying-text", position = to.position, text = msg, color = colors.white}
+    remote.call(remote_interface, "set_sprite", {entity=to, sprite=new_sprite})
+
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+end
+
 function Smarts.container_to_train_stop(from, to, player, special)
     local cycle = get_chest_inventory(from)
     if #cycle > 0 then update_entity(to, cycle) end
@@ -539,6 +576,7 @@ function Smarts.on_vanilla_paste(event)
 end
 
 Smarts.actions = {
+    ["container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
     ["constant-combinator|train-stop"] = Smarts.constant_combinator_to_train_stop,
     ["decider-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
