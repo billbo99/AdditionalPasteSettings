@@ -154,3 +154,16 @@ data:extend(
         },
     }
 )
+
+if mods["space-exploration-postprocess"] then
+    data:extend({
+        {
+            type = "string-setting",
+            name = "additional-paste-settings-se-rocket-landing-pad-name",
+            setting_type = "runtime-global",
+            allow_blank = false,
+            default_value = "__1__ (__2__)",
+            order = "zc"
+        },
+    })
+end
