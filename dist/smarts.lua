@@ -309,7 +309,7 @@ function Smarts.container_to_container(from, to, player, special)
         local current_name = remote.call("space-exploration", "get_landing_pad", {unit_number=to.unit_number})
         if current_name ~= name then
             to.surface.create_entity {name = "flying-text", position = to.position, text = name, color = colors.white}
-            remote.call("space-exploration", "rename_landing_pad", {unit_number=to.unit_number, name=name})
+            remote.call("space-exploration", "set_landing_pad", {unit_number=to.unit_number, name=name})
         end
 
     end
