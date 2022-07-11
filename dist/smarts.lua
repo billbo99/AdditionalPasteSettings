@@ -306,10 +306,10 @@ function Smarts.container_to_container(from, to, player, special)
         if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
 
         -- Grab the current name and if the new name is different use the remote interface to change the name of the landing pad
-        local current_name = remote.call("space-exploration", "get_landing_pad", {unit_number=to.unit_number})
+        local current_name = remote.call("space-exploration", "get_landing_pad_name", {unit_number=to.unit_number})
         if current_name ~= name then
             to.surface.create_entity {name = "flying-text", position = to.position, text = name, color = colors.white}
-            remote.call("space-exploration", "set_landing_pad", {unit_number=to.unit_number, name=name})
+            remote.call("space-exploration", "set_landing_pad_name", {unit_number=to.unit_number, name=name})
         end
 
     end
