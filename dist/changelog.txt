@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.3
+Date: 2022.07.10
+  Changes:
+    - Added paste from chest to DisplayPlates / IndustrialDisplayPlates .. just waiting on them to accept my PR
+---------------------------------------------------------------------------------------------------
+Version: 1.4.2
+Date: 2022.07.09
+  Bugfixes:
+    - Crash when pasting from empty chest to station
+---------------------------------------------------------------------------------------------------
 Version: 1.4.1
 Date: 2022.xx.xx
   Changes:
