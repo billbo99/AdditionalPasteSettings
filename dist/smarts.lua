@@ -156,7 +156,7 @@ function Smarts.assembly_to_constant_combinator(from, to, player, special)
                 end
             end
 
-            if not found then
+            if (not found) then
                 for i = 1, ctrl.signals_count do
                     local s = ctrl.get_signal(i)
                     if s.signal == nil then
@@ -236,6 +236,7 @@ local function rename_train_stop(station)
     local entity = global.enity_deta_data[station.unit_number]
     local item = entity.cycle[entity.cycle_index]
 
+    if (not item) then return end
     if entity.mode == "Load" then station_name = utils.parse_string(config['station_name_load'], {parse_signal_to_rich_text(item), item.name}) end
     if entity.mode == "Unload" then station_name = utils.parse_string(config['station_name_unload'], {parse_signal_to_rich_text(item), item.name}) end
     if entity.mode == "Unload" then entity.cycle_index = entity.cycle_index + 1 end
@@ -248,11 +249,11 @@ local function rename_train_stop(station)
     end
 end
 
-local function update_entity(to, cycle)
+local function update_station(to, cycle)
     global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
     local entity = global.enity_deta_data[to.unit_number]
 
-    if entity == nil or entity.cycle == nil or not table.compare(cycle, entity.cycle) then
+    if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
         entity.mode = "Load"
         entity.cycle = cycle
         entity.cycle_index = 1
@@ -262,7 +263,7 @@ local function update_entity(to, cycle)
 end
 
 function Smarts.constant_combinator_to_train_stop(from, to, player, special)
-    if from and not from.get_control_behavior().enabled then return end
+    if from and (not from.get_control_behavior().enabled) then return end
 
     local signals = from.get_control_behavior().parameters
     local cycle = {}
@@ -272,7 +273,7 @@ function Smarts.constant_combinator_to_train_stop(from, to, player, special)
         end
     end
 
-    update_entity(to, cycle)
+    update_station(to, cycle)
 end
 
 function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, special)
@@ -284,7 +285,46 @@ function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, sp
         table.insert(cycle, v.signal)
     end
 
-    update_entity(to, cycle)
+    update_station(to, cycle)
+end
+
+function Smarts.container_to_container(from, to, player, special)
+    if from and from.get_inventory(defines.inventory.chest) == nil then return end
+    if to.name == "se-rocket-landing-pad" then
+        -- If the destination is a SE landing pad use remote interface to rename the pad and show a flying text
+
+        global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
+
+        -- Build list of items from the "FROM" container
+        local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
+        local cycle = {}
+        for _, v in pairs(inventory) do
+            table.insert(cycle, {name=v, type="item"})
+        end
+
+        -- Check if the global dict tracking the entities being changed needs to be reset due to a new inventory
+        local entity = global.enity_deta_data[to.unit_number]
+        if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
+            entity.cycle = cycle
+            entity.cycle_index = 1
+        end
+
+        local item = entity.cycle[entity.cycle_index]
+        if (not item) then return end
+
+        -- Get the name of the cargo rocket pad following the naming standard in the "MAP SETTINGS"
+        local name = utils.parse_string(config['se-rocket-landing-pad-name'], {parse_signal_to_rich_text(item), item.name})
+        entity.cycle_index = entity.cycle_index + 1
+        if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+        -- Grab the current name and if the new name is different use the remote interface to change the name of the landing pad
+        local current_name = remote.call("space-exploration", "get_landing_pad_name", {unit_number=to.unit_number})
+        if current_name ~= name then
+            to.surface.create_entity {name = "flying-text", position = to.position, text = name, color = colors.white}
+            remote.call("space-exploration", "set_landing_pad_name", {unit_number=to.unit_number, name=name})
+        end
+
+    end
 end
 
 function Smarts.container_to_simple_entity_with_owner(from, to, player, special)
@@ -341,12 +381,12 @@ function Smarts.assembly_to_train_stop(from, to, player, special)
         table.insert(cycle, v)
     end
 
-    update_entity(to, cycle)
+    update_station(to, cycle)
 
 end
 
 function Smarts.assembly_to_transport_belt(from, to, player, special)
-    if not settings.get_player_settings(player)["additional-paste-settings-paste-to-belt-enabled"].value then
+    if (not settings.get_player_settings(player)["additional-paste-settings-paste-to-belt-enabled"].value) then
         return
     end
 
@@ -511,7 +551,7 @@ function Smarts.on_vanilla_paste(event)
             local stack = event.destination.get_request_slot(i)
             if stack then
                 post_stacks[stack.name] = stack.count
-                if not evt.stacks[stack.name] then
+                if (not evt.stacks[stack.name]) then
                     evt.stacks[stack.name] = 0
                 end
             end
@@ -576,6 +616,7 @@ function Smarts.on_vanilla_paste(event)
 end
 
 Smarts.actions = {
+    ["container|container"] = Smarts.container_to_container,
     ["container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
     ["constant-combinator|train-stop"] = Smarts.constant_combinator_to_train_stop,
     ["decider-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,

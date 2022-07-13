@@ -10,6 +10,12 @@ Date: 2022.07.09
     - Crash when pasting from empty chest to station
 ---------------------------------------------------------------------------------------------------
 Version: 1.4.1
+Date: 2022.xx.xx
+  Changes:
+    - Added paste to SE cargo pad from container
+      - Pasting multiple times will cycle the name of the landing pad based on the inventory of chests being copied from.
+---------------------------------------------------------------------------------------------------
+Version: 1.4.1
 Date: 2022.06.30
   Bugfixes:
     - fixed it so that it did actually rotate through signals.
