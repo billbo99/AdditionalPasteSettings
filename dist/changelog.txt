@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.4
+Date: 2022.07.13
+  Changes:
+    - Added copy from (combinaotr/chest/assembly machine) paste to Space Exploration Cargo Pad and set the name
+---------------------------------------------------------------------------------------------------
 Version: 1.4.3
 Date: 2022.07.10
   Changes:

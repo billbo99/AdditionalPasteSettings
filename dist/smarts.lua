@@ -26,6 +26,177 @@ local colors = {
     brown = {r = 0.6, g = 0.4, b = 0.1}
 }
 
+--------------------------------------------------------------------------------------------------------------
+----------  Local Helper functions
+
+-----  Get list of keys from a table
+local function get_keys(t)
+    local keys={}
+    for key,_ in pairs(t) do
+        table.insert(keys, key)
+    end
+    table.sort(keys)
+    return keys
+end
+
+-----  Parse signal data to nice text format
+local function parse_signal_to_rich_text(signal_data)
+    if signal_data ~= nil then
+        local text_type = signal_data.type or "item"
+        if text_type == "virtual" then
+            text_type = "virtual-signal"
+        end
+
+        return string.format("[img=%s/%s]", text_type, signal_data.name)
+    end
+end
+
+--------------------------------------------------------------------------------------------------------------
+----------  Local cycle functions
+
+-----  Container cycle
+local function container_cycle(entity)
+    local cycle = {}
+    if entity and entity.valid and entity.get_inventory(defines.inventory.chest) then
+        local inventory = get_keys(entity.get_inventory(defines.inventory.chest).get_contents())
+        for _, v in pairs(inventory) do
+            table.insert(cycle, {name=v, type="item"})
+        end
+    end
+    return cycle
+end
+
+-----  Decider/Arithmetic combinator cycle
+local function decider_arithmetic_combinator_cycle(entity)
+    local cycle = {}
+    if entity and entity.valid and entity.get_control_behavior().signals_last_tick then
+        local signals = entity.get_control_behavior().signals_last_tick
+        for _, v in pairs(signals) do
+            table.insert(cycle, v.signal)
+        end
+    end
+    return cycle
+end
+
+-----  DisplayPlate current sprite
+local function simple_entity_with_owner_cycle(display_plate)
+    local remote_interface
+    if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
+    if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
+
+    local interfaces = remote.interfaces[remote_interface]
+    if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return end
+
+    local rv = remote.call(remote_interface, "get_sprite", {entity=display_plate})
+    if (not rv) then return end
+
+    local cycle = {{type=rv.spritetype, name=rv.spritename}}
+    return cycle
+
+end
+
+-----  Assembly Machine cycle
+local function assembly_cycle(assembly_machine)
+    local cycle = {}
+
+    if assembly_machine and assembly_machine.valid and assembly_machine.get_recipe() then
+        local recipe = assembly_machine.get_recipe()
+        for _, v in pairs(recipe.products) do
+            table.insert(cycle, v)
+        end
+        for _, v in pairs(recipe.ingredients) do
+            table.insert(cycle, v)
+        end
+    end
+
+    return cycle
+end
+
+-----  Constant Combinator cycle
+local function constant_combinator_cycle(constant_combinator)
+    local cycle = {}
+
+    if constant_combinator and constant_combinator.valid and constant_combinator.get_control_behavior().enabled then
+        local signals = constant_combinator.get_control_behavior().parameters
+        for _, v in pairs(signals) do
+            if v.signal.name then
+                table.insert(cycle, v.signal)
+            end
+        end
+    end
+
+    return cycle
+end
+
+--------------------------------------------------------------------------------------------------------------
+----------  Local rename functions
+
+local function update_se_landing_pad_name(landing_pad_entity, cycle)
+    if landing_pad_entity.name ~= "se-rocket-landing-pad" then return end
+
+    -- If the destination is a SE landing pad use remote interface to rename the pad and show a flying text
+    global.enity_deta_data[landing_pad_entity.unit_number] = global.enity_deta_data[landing_pad_entity.unit_number] or {}
+
+    -- Check if the global dict tracking the entities being changed needs to be reset due to a new inventory
+    local entity = global.enity_deta_data[landing_pad_entity.unit_number]
+    if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    local item = entity.cycle[entity.cycle_index]
+    if (not item) then return end
+
+    -- Get the name of the cargo rocket pad following the naming standard in the "MAP SETTINGS"
+    local name = utils.parse_string(config['se-rocket-landing-pad-name'], {parse_signal_to_rich_text(item), item.name})
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+    -- Grab the current name and if the new name is different use the remote interface to change the name of the landing pad
+    local current_name = remote.call("space-exploration", "get_landing_pad_name", {unit_number=landing_pad_entity.unit_number})
+    if current_name ~= name then
+        landing_pad_entity.surface.create_entity {name = "flying-text", position = landing_pad_entity.position, text = name, color = colors.white}
+        remote.call("space-exploration", "set_landing_pad_name", {unit_number=landing_pad_entity.unit_number, name=name})
+    end
+
+end
+
+local function update_simple_entity_with_owner(display_plate, cycle)
+
+    local remote_interface
+    if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
+    if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
+
+    local interfaces = remote.interfaces[remote_interface]
+    if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return end
+
+    local rv = remote.call(remote_interface, "get_sprite", {entity=display_plate})
+    if (not rv) then return end
+
+    global.enity_deta_data[display_plate.unit_number] = global.enity_deta_data[display_plate.unit_number] or {}
+    local entity = global.enity_deta_data[display_plate.unit_number]
+
+    if entity == nil or entity.cycle == nil or not table.compare(cycle, entity.cycle) then
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    if entity.cycle[entity.cycle_index].type == "virtual" then
+        entity.cycle[entity.cycle_index].type = "virtual-signal"
+    end
+    local new_sprite = entity.cycle[entity.cycle_index].type .. "/" .. entity.cycle[entity.cycle_index].name
+
+    local msg = parse_signal_to_rich_text(entity.cycle[entity.cycle_index]) .. " " .. entity.cycle[entity.cycle_index].name
+    display_plate.surface.create_entity {name = "flying-text", position = display_plate.position, text = msg, color = colors.white}
+    remote.call(remote_interface, "set_sprite", {entity=display_plate, sprite=new_sprite})
+
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+end
+
+----------
+
+
 local function update_stack(mtype, multiplier, stack, previous_value, recipe, speed, additive, special)
     if mtype == "additional-paste-settings-per-stack-size" then
         if additive and previous_value ~= nil then
@@ -199,37 +370,6 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
     end
 end
 
-local function get_keys(t)
-    local keys={}
-    for key,_ in pairs(t) do
-        table.insert(keys, key)
-    end
-    table.sort(keys)
-    return keys
-end
-
-local function get_chest_inventory(entity)
-    if entity and entity.valid and entity.get_inventory(defines.inventory.chest) then
-        local inventory = get_keys(entity.get_inventory(defines.inventory.chest).get_contents())
-        local cycle = {}
-        for _, v in pairs(inventory) do
-            table.insert(cycle, {name=v, type="item"})
-        end
-        return cycle
-    end
-end
-
-
-local function parse_signal_to_rich_text(signal_data)
-    if signal_data ~= nil then
-        local text_type = signal_data.type or "item"
-        if text_type == "virtual" then
-            text_type = "virtual-signal"
-        end
-
-        return string.format("[img=%s/%s]", text_type, signal_data.name)
-    end
-end
 
 local function rename_train_stop(station)
     local station_name
@@ -263,126 +403,78 @@ local function update_station(to, cycle)
 end
 
 function Smarts.constant_combinator_to_train_stop(from, to, player, special)
-    if from and (not from.get_control_behavior().enabled) then return end
-
-    local signals = from.get_control_behavior().parameters
-    local cycle = {}
-    for _, v in pairs(signals) do
-        if v.signal.name then
-            table.insert(cycle, v.signal)
-        end
-    end
-
-    update_station(to, cycle)
+    local cycle = constant_combinator_cycle(from)
+    if #cycle > 0 then update_station(to, cycle) end
 end
 
 function Smarts.decider_arithmetic_combinator_to_train_stop(from, to, player, special)
-    if from and from.get_control_behavior().signals_last_tick == nil then return end
+    local cycle = decider_arithmetic_combinator_cycle(from)
+    if #cycle > 0 then update_station(to, cycle) end
+end
 
-    local signals = from.get_control_behavior().signals_last_tick
-    local cycle = {}
-    for _, v in pairs(signals) do
-        table.insert(cycle, v.signal)
+function Smarts.decider_arithmetic_combinator_to_container(from, to, player, special)
+    local cycle = decider_arithmetic_combinator_cycle(from)
+    if #cycle == 0 then return end
+    update_se_landing_pad_name(to, cycle)
+end
+
+function Smarts.simple_entity_with_owner_to_container(from, to, player, special)
+    if to.name == "se-rocket-landing-pad" then
+        local cycle = simple_entity_with_owner_cycle(from)
+        if #cycle == 0 then return end
+        update_se_landing_pad_name(to, cycle)
     end
+end
 
-    update_station(to, cycle)
+function Smarts.constant_combinator_to_container(from, to, player, special)
+    if to.name == "se-rocket-landing-pad" then
+        local cycle = constant_combinator_cycle(from)
+        if #cycle > 0 then update_se_landing_pad_name(to, cycle) end
+    end
+end
+
+function Smarts.assembly_to_container(from, to, player, special)
+    if to.name == "se-rocket-landing-pad" then
+        local cycle = assembly_cycle(from)
+        if #cycle > 0 then update_se_landing_pad_name(to, cycle) end
+    end
 end
 
 function Smarts.container_to_container(from, to, player, special)
-    if from and from.get_inventory(defines.inventory.chest) == nil then return end
     if to.name == "se-rocket-landing-pad" then
-        -- If the destination is a SE landing pad use remote interface to rename the pad and show a flying text
-
-        global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
-
-        -- Build list of items from the "FROM" container
-        local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
-        local cycle = {}
-        for _, v in pairs(inventory) do
-            table.insert(cycle, {name=v, type="item"})
-        end
-
-        -- Check if the global dict tracking the entities being changed needs to be reset due to a new inventory
-        local entity = global.enity_deta_data[to.unit_number]
-        if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
-            entity.cycle = cycle
-            entity.cycle_index = 1
-        end
-
-        local item = entity.cycle[entity.cycle_index]
-        if (not item) then return end
-
-        -- Get the name of the cargo rocket pad following the naming standard in the "MAP SETTINGS"
-        local name = utils.parse_string(config['se-rocket-landing-pad-name'], {parse_signal_to_rich_text(item), item.name})
-        entity.cycle_index = entity.cycle_index + 1
-        if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
-
-        -- Grab the current name and if the new name is different use the remote interface to change the name of the landing pad
-        local current_name = remote.call("space-exploration", "get_landing_pad_name", {unit_number=to.unit_number})
-        if current_name ~= name then
-            to.surface.create_entity {name = "flying-text", position = to.position, text = name, color = colors.white}
-            remote.call("space-exploration", "set_landing_pad_name", {unit_number=to.unit_number, name=name})
-        end
-
+        local cycle = container_cycle(from)
+        update_se_landing_pad_name(to, cycle)
     end
+end
+
+function Smarts.decider_arithmetic_combinator_to_simple_entity_with_owner(from, to, player, special)
+    local cycle = decider_arithmetic_combinator_cycle(from)
+    if #cycle > 0 then update_simple_entity_with_owner(to, cycle) end
+end
+
+function Smarts.constant_combinator_to_simple_entity_with_owner(from, to, player, special)
+    local cycle = constant_combinator_cycle(from)
+    if #cycle > 0 then update_simple_entity_with_owner(to, cycle) end
+end
+
+function Smarts.assembly_to_simple_entity_with_owner(from, to, player, special)
+    local cycle = assembly_cycle(from)
+    if #cycle > 0 then update_simple_entity_with_owner(to, cycle) end
 end
 
 function Smarts.container_to_simple_entity_with_owner(from, to, player, special)
-    if from and from.get_inventory(defines.inventory.chest) == nil then return end
-
-    local remote_interface
-    if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
-    if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
-
-    local interfaces = remote.interfaces[remote_interface]
-    if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return end
-
-    local rv = remote.call(remote_interface, "get_sprite", {entity=to})
-    if (not rv) then return end
-
-    local inventory = get_keys(from.get_inventory(defines.inventory.chest).get_contents())
-    local cycle = {}
-    for _, v in pairs(inventory) do
-        table.insert(cycle, {name=v, type="item"})
-    end
-
-    global.enity_deta_data[to.unit_number] = global.enity_deta_data[to.unit_number] or {}
-    local entity = global.enity_deta_data[to.unit_number]
-
-    if entity == nil or entity.cycle == nil or not table.compare(cycle, entity.cycle) then
-        entity.cycle = cycle
-        entity.cycle_index = 1
-    end
-
-    local new_sprite = entity.cycle[entity.cycle_index].type .. "/" .. entity.cycle[entity.cycle_index].name
-
-    local msg = parse_signal_to_rich_text(entity.cycle[entity.cycle_index]) .. " " .. entity.cycle[entity.cycle_index].name
-    to.surface.create_entity {name = "flying-text", position = to.position, text = msg, color = colors.white}
-    remote.call(remote_interface, "set_sprite", {entity=to, sprite=new_sprite})
-
-    entity.cycle_index = entity.cycle_index + 1
-    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+    local cycle = container_cycle(from)
+    if #cycle > 0 then update_simple_entity_with_owner(to, cycle) end
 end
 
 function Smarts.container_to_train_stop(from, to, player, special)
-    local cycle = get_chest_inventory(from)
-    if #cycle > 0 then update_entity(to, cycle) end
+    local cycle = container_cycle(from)
+    if #cycle > 0 then update_station(to, cycle) end
 end
 
 function Smarts.assembly_to_train_stop(from, to, player, special)
-    if from and from.get_recipe() == nil then return end
-
-    local cycle = {}
-    local recipe = from.get_recipe()
-    for _, v in pairs(recipe.products) do
-        table.insert(cycle, v)
-    end
-    for _, v in pairs(recipe.ingredients) do
-        table.insert(cycle, v)
-    end
-
-    update_station(to, cycle)
-
+    local cycle = assembly_cycle(from)
+    if #cycle > 0 then update_station(to, cycle) end
 end
 
 function Smarts.assembly_to_transport_belt(from, to, player, special)
@@ -616,13 +708,33 @@ function Smarts.on_vanilla_paste(event)
 end
 
 Smarts.actions = {
+    --  SE cargo landing pad actions
     ["container|container"] = Smarts.container_to_container,
+    ["logistic-container|container"] = Smarts.container_to_container,
+    ["arithmetic-combinator|container"] = Smarts.decider_arithmetic_combinator_to_container,
+    ["decider-combinator|container"] = Smarts.decider_arithmetic_combinator_to_container,
+    ["constant-combinator|container"] = Smarts.constant_combinator_to_container,
+    ["assembling-machine|container"] = Smarts.assembly_to_container,
+
+    --  SE + DisplayPlate actions
+    ["simple-entity-with-owner|container"] = Smarts.simple_entity_with_owner_to_container,
+
+    --  DisplayPlate actions
     ["container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
+    ["logistic-container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
+    ["arithmetic-combinator|simple-entity-with-owner"] = Smarts.decider_arithmetic_combinator_to_simple_entity_with_owner,
+    ["decider-combinator|simple-entity-with-owner"] = Smarts.decider_arithmetic_combinator_to_simple_entity_with_owner,
+    ["constant-combinator|simple-entity-with-owner"] = Smarts.constant_combinator_to_simple_entity_with_owner,
+    ["assembling-machine|simple-entity-with-owner"] = Smarts.assembly_to_simple_entity_with_owner,
+
+    --  Train station actions
     ["constant-combinator|train-stop"] = Smarts.constant_combinator_to_train_stop,
     ["decider-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["container|train-stop"] = Smarts.container_to_train_stop,
     ["assembling-machine|train-stop"] = Smarts.assembly_to_train_stop,
+
+    --  Old actions
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
     ["assembling-machine|logistic-container"] = Smarts.assembly_to_logistic_chest,
