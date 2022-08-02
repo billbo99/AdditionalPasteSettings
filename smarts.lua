@@ -360,8 +360,7 @@ end
 function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
     if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
-        global.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player
-            .index, stacks = {} }
+        global.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
     elseif to.prototype.logistic_mode == "storage" then
         if from.get_recipe() ~= nil then
             local msg
@@ -671,7 +670,7 @@ function Smarts.on_vanilla_paste(event)
         local result = {}
         local multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-value"].value ---@cast multiplier double
         local mtype = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-type"].value
-        local recipe = event.source.get_recipe()
+        local recipe = event.source.get_recipe() ---@cast recipe LuaRecipe
         local speed = event.source.crafting_speed
         local additive = settings.get_player_settings(event.player_index)["additional-paste-settings-options-sumup"].value
         local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and event.destination.prototype.logistic_mode == "buffer"
@@ -698,6 +697,7 @@ function Smarts.on_vanilla_paste(event)
 
             if prior ~= {} then
                 if result[prior.name] ~= nil then
+                    -- update_stack(mtype, multiplier, stack, previous_value, recipe, speed, additive, special)
                     result[prior.name].count = update_stack(mtype, multiplier, prior, result[prior.name].count, recipe, speed, additive)
                 else
                     result[prior.name] = { name = prior.name, count = prior.count }
@@ -707,15 +707,13 @@ function Smarts.on_vanilla_paste(event)
             if post ~= nil then
                 if invertPaste then
                     if result[post.name] ~= nil then
-                        result[post.name].count = update_stack(mtype, -1 * multiplier, post, result[post.name].count,
-                            recipe, speed, additive)
+                        result[post.name].count = update_stack(mtype, -1 * multiplier, post, result[post.name].count, recipe, speed, additive)
                     else
                         result[post.name] = { name = post.name, count = 0 }
                     end
                 else
                     if result[post.name] ~= nil then
-                        result[post.name].count = update_stack(mtype, multiplier, post, result[post.name].count, recipe,
-                            speed, additive)
+                        result[post.name].count = update_stack(mtype, multiplier, post, result[post.name].count, recipe, speed, additive)
                     else
                         result[post.name] = { name = post.name,
                             count = update_stack(mtype, multiplier, post, nil, recipe, speed, additive) }
@@ -728,6 +726,11 @@ function Smarts.on_vanilla_paste(event)
             for k, product in pairs(recipe.products) do
                 if result[product.name] ~= nil then
                     result[product.name].count = update_stack(mtype, multiplier, result[product.name], result[product.name].count, recipe, speed, additive)
+                else
+                    result[product.name] = {
+                        name = product.name,
+                        count = update_stack(mtype, multiplier, { name = product.name }, game.item_prototypes[product.name].stack_size, recipe, speed, additive)
+                    }
                 end
             end
         end
