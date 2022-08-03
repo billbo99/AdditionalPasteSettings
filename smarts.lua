@@ -366,7 +366,9 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
             local msg
             local proto = game.item_prototypes[from.get_recipe().name]
             if proto then
+                to.storage_filter = proto
                 msg = "Filter applied [img=item." .. from.get_recipe().name .. "]"
+                to.surface.create_entity { name = "flying-text", position = to.position, text = msg, color = lib.colors.white }
             else
                 local products = from.get_recipe().products
                 for _, product in pairs(products) do
@@ -376,12 +378,11 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
                     end
                 end
                 if proto then
+                    to.storage_filter = proto
                     msg = "Filter applied [img=item." .. proto.name .. "]"
+                    to.surface.create_entity { name = "flying-text", position = to.position, text = msg, color = lib.colors.white }
                 end
             end
-            global.event_backup[
-                from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { proto = proto,
-                msg = msg, target = to }
         end
     end
 end
@@ -657,14 +658,6 @@ end
 ---@param event EventData.on_entity_settings_pasted
 function Smarts.on_vanilla_paste(event)
     local evt = global.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y]
-
-    -- Deal with two mods catching the same event
-    if evt ~= nil and event.source.type == "assembling-machine" and event.destination.type == "logistic-container" and
-        event.destination.prototype.logistic_mode == "storage" then
-        evt.target.storage_filter = evt.proto
-        evt.target.surface.create_entity { name = "flying-text", position = evt.target.position, text = evt.msg, color = lib.colors.white }
-        global.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y] = nil
-    end
 
     if evt ~= nil and event.source.type == "assembling-machine" and event.destination.type == "logistic-container" and (event.destination.prototype.logistic_mode == "requester" or event.destination.prototype.logistic_mode == "buffer") then
         local result = {}
