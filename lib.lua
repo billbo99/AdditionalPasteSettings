@@ -17,15 +17,13 @@ lib.parse_string = function(str, args)
     return str
 end
 
----Find a name in flib's locales dictonary
+---Find a name in babelfish's locales dictonary
 ---@param item_name string
 ---@param item_type string
 ---@return string|nil
-lib.find_name_in_flib_dictonary = function(item_name, item_type)
-    for _, _dict in pairs(global.player_dictionaries) do
-        if _dict[item_type] and _dict[item_type][item_name] then
-            return _dict[item_type][item_name]
-        end
+lib.find_name_in_babelfish_dictonary = function(item_name, item_type)
+    if global.locale_dictionaries[item_type] and global.locale_dictionaries[item_type][item_name] then
+        return global.locale_dictionaries[item_type][item_name]
     end
     return nil
 end

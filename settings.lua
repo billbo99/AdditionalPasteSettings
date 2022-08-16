@@ -154,7 +154,7 @@ data:extend(
         },
         {
             type = "bool-setting",
-            name = "additional-paste-settings-use_flib",
+            name = "additional-paste-settings-use_Babelfish",
             setting_type = "runtime-global",
             default_value = false,
             order = "zc"

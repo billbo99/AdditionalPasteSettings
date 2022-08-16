@@ -134,8 +134,8 @@ local function update_se_landing_pad_name(landing_pad_entity, cycle)
     if (not item) then return end
 
     local item_name
-    if config['use_flib'] then
-        item_name = lib.find_name_in_flib_dictonary(item.name, item.type)
+    if config['use_Babelfish'] then
+        item_name = lib.find_name_in_babeldish_dictonary(item.name, item.type)
     else
         item_name = item.name
     end
@@ -395,8 +395,8 @@ local function rename_train_stop(station)
     if (not item) then return end
 
     local item_name
-    if config['use_flib'] then
-        item_name = lib.find_name_in_flib_dictonary(item.name, item.type)
+    if config['use_Babelfish'] then
+        item_name = lib.find_name_in_babelfish_dictonary(item.name, item.type)
     else
         item_name = item.name
     end
@@ -746,6 +746,10 @@ function Smarts.on_vanilla_paste(event)
         event.destination.surface.create_entity { name = "flying-text", position = event.destination.position, text = msg, color = lib.colors.white }
         global.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y] = nil
     end
+end
+
+function Smarts.get_translations()
+    global.locale_dictionaries = remote.call("Babelfish", "get_translations")
 end
 
 -- ---@type table<string, fun(name:string, value: number)>
