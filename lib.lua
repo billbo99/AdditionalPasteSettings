@@ -1,3 +1,5 @@
+local config = require('config')
+
 local lib = {} ---@class HelperLibrary
 
 ---@param str string
@@ -25,7 +27,7 @@ lib.find_name_in_babelfish_dictonary = function(item_name, item_type)
     if global.locale_dictionaries[item_type] and global.locale_dictionaries[item_type][item_name] then
         return global.locale_dictionaries[item_type][item_name]
     end
-    return nil
+    return item_name
 end
 
 ---Parse signal data to nice text format
@@ -39,7 +41,11 @@ lib.parse_signal_to_rich_text = function(signal_data)
             text_type = "virtual-signal"
         end
 
-        return string.format("[img=%s/%s]", text_type, signal_data.name)
+        if config['switch_icon_format'] then
+            return string.format("[%s=%s]", text_type, signal_data.name)
+        else
+            return string.format("[img=%s/%s]", text_type, signal_data.name)
+        end
     end
     return nil
 end

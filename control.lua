@@ -13,8 +13,10 @@ local function init_globals()
 end
 
 local function register_events()
-    local on_translations_complete_event = remote.call("Babelfish", "get_on_translations_complete_event")
-    script.on_event(on_translations_complete_event, Smarts.get_translations)
+    if remote.interfaces["Babelfish"] then
+        local on_translations_complete_event = remote.call("Babelfish", "get_on_translations_complete_event")
+        script.on_event(on_translations_complete_event, Smarts.get_translations)
+    end
 end
 
 local function on_init()

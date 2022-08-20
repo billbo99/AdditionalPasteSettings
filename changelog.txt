@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.5.5
+Date: 2022.08.20
+  Changes:
+    - Changed so Babelfish is an optional mod, not everyone needs/wants translated names
+    - Added an option to change the RICHTEXT formatter .. Default is [ img=class/name ], enabling the option switches to [ class=name ]
+
+---------------------------------------------------------------------------------------------------
 Version: 1.5.4
 Date: 2022.08.16
   Changes:

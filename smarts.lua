@@ -135,7 +135,7 @@ local function update_se_landing_pad_name(landing_pad_entity, cycle)
 
     local item_name
     if config['use_Babelfish'] then
-        item_name = lib.find_name_in_babeldish_dictonary(item.name, item.type)
+        item_name = lib.find_name_in_babelfish_dictonary(item.name, item.type)
     else
         item_name = item.name
     end
