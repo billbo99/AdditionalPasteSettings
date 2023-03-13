@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.5.6
+Date: 2023.03.13
+  Bugfixes:
+    - Fixed when pasting to a buffer chest with inverse option set and one of the outputs is a fluid
+---------------------------------------------------------------------------------------------------
 Version: 1.5.5
 Date: 2022.08.20
   Changes:
@@ -40,12 +45,6 @@ Version: 1.4.2
 Date: 2022.07.09
   Bugfixes:
     - Crash when pasting from empty chest to station
----------------------------------------------------------------------------------------------------
-Version: 1.4.1
-Date: 2022.xx.xx
-  Changes:
-    - Added paste to SE cargo pad from container
-      - Pasting multiple times will cycle the name of the landing pad based on the inventory of chests being copied from.
 ---------------------------------------------------------------------------------------------------
 Version: 1.4.1
 Date: 2022.06.30

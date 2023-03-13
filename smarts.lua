@@ -152,16 +152,18 @@ local function update_se_landing_pad_name(landing_pad_entity, cycle)
         landing_pad_entity.surface.create_entity { name = "flying-text", position = landing_pad_entity.position, text = name, color = lib.colors.white }
         remote.call("space-exploration", "set_landing_pad_name", { unit_number = landing_pad_entity.unit_number, name = name })
     end
-
 end
 
 ---@param display_plate LuaEntity
 ---@param cycle ItemCycle[]
 local function update_simple_entity_with_owner(display_plate, cycle)
-
     local remote_interface
     if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
     if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
+    if game.active_mods["Display_Plates"] then remote_interface = "Display_Plates" end
+
+    if not remote_interface then return end
+    if not remote.interfaces[remote_interface] then return end
 
     local interfaces = remote.interfaces[remote_interface]
     if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return end
@@ -708,8 +710,10 @@ function Smarts.on_vanilla_paste(event)
                     if result[post.name] ~= nil then
                         result[post.name].count = update_stack(mtype, multiplier, post, result[post.name].count, recipe, speed, additive)
                     else
-                        result[post.name] = { name = post.name,
-                            count = update_stack(mtype, multiplier, post, nil, recipe, speed, additive) }
+                        result[post.name] = {
+                            name = post.name,
+                            count = update_stack(mtype, multiplier, post, nil, recipe, speed, additive)
+                        }
                     end
                 end
             end
@@ -717,13 +721,15 @@ function Smarts.on_vanilla_paste(event)
 
         if invertPaste and recipe then
             for k, product in pairs(recipe.products) do
-                if result[product.name] ~= nil then
-                    result[product.name].count = update_stack(mtype, multiplier, result[product.name], result[product.name].count, recipe, speed, additive)
-                else
-                    result[product.name] = {
-                        name = product.name,
-                        count = update_stack(mtype, multiplier, { name = product.name }, game.item_prototypes[product.name].stack_size, recipe, speed, additive)
-                    }
+                if product.type ~= "fluid" then
+                    if result[product.name] ~= nil then
+                        result[product.name].count = update_stack(mtype, multiplier, result[product.name], result[product.name].count, recipe, speed, additive)
+                    else
+                        result[product.name] = {
+                            name = product.name,
+                            count = update_stack(mtype, multiplier, { name = product.name }, game.item_prototypes[product.name].stack_size, recipe, speed, additive)
+                        }
+                    end
                 end
             end
         end
@@ -777,10 +783,8 @@ Smarts.actions = {
     ["decider-combinator|container"] = Smarts.decider_arithmetic_combinator_to_container,
     ["constant-combinator|container"] = Smarts.constant_combinator_to_container,
     ["assembling-machine|container"] = Smarts.assembly_to_container,
-
     --  SE + DisplayPlate actions
     ["simple-entity-with-owner|container"] = Smarts.simple_entity_with_owner_to_container,
-
     --  DisplayPlate actions
     ["container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
     ["logistic-container|simple-entity-with-owner"] = Smarts.container_to_simple_entity_with_owner,
@@ -788,14 +792,12 @@ Smarts.actions = {
     ["decider-combinator|simple-entity-with-owner"] = Smarts.decider_arithmetic_combinator_to_simple_entity_with_owner,
     ["constant-combinator|simple-entity-with-owner"] = Smarts.constant_combinator_to_simple_entity_with_owner,
     ["assembling-machine|simple-entity-with-owner"] = Smarts.assembly_to_simple_entity_with_owner,
-
     --  Train station actions
     ["constant-combinator|train-stop"] = Smarts.constant_combinator_to_train_stop,
     ["decider-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["container|train-stop"] = Smarts.container_to_train_stop,
     ["assembling-machine|train-stop"] = Smarts.assembly_to_train_stop,
-
     --  Old actions
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
