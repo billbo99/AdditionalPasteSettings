@@ -559,6 +559,62 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
     end
 end
 
+local function set_loader_filter(loader)
+    local entity = global.entity_data[loader.unit_number]
+    local item = entity.cycle[entity.cycle_index]
+
+    if (not item) then return end
+
+    local item_name
+    if config['use_Babelfish'] then
+        item_name = lib.find_name_in_babelfish_dictonary(item.name, item.type)
+    else
+        item_name = item.name
+    end
+
+    for idx = 1, loader.filter_slot_count do
+        loader.set_filter(idx, nil)
+    end
+
+    loader.set_filter(1, item.name)
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+    loader.surface.create_entity { name = "flying-text", position = loader.position, text = "Apply filter " .. "[img=item." .. item.name .. "]" .. item_name, color = lib.colors.white }
+end
+
+local function update_loader(to, cycle)
+    global.entity_data[to.unit_number] = global.entity_data[to.unit_number] or {}
+    local entity = global.entity_data[to.unit_number]
+
+    if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    set_loader_filter(to)
+end
+
+function Smarts.assembly_to_loader(from, to, player, special)
+    local cycle = assembly_cycle(from)
+    if #cycle > 0 then update_loader(to, cycle) end
+end
+
+function Smarts.constant_combinator_to_loader(from, to, player, special)
+    local cycle = constant_combinator_cycle(from)
+    if #cycle > 0 then update_loader(to, cycle) end
+end
+
+function Smarts.decider_arithmetic_combinator_to_loader(from, to, player, special)
+    local cycle = decider_arithmetic_combinator_cycle(from)
+    if #cycle > 0 then update_loader(to, cycle) end
+end
+
+function Smarts.container_to_loader(from, to, player, special)
+    local cycle = container_cycle(from)
+    if #cycle > 0 then update_loader(to, cycle) end
+end
+
 function Smarts.assembly_to_inserter(from, to, player, special)
     local ctrl = to.get_or_create_control_behavior()
     local c1 = ctrl.get_circuit_network(defines.wire_type.red)
@@ -798,6 +854,13 @@ Smarts.actions = {
     ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["container|train-stop"] = Smarts.container_to_train_stop,
     ["assembling-machine|train-stop"] = Smarts.assembly_to_train_stop,
+    --  Loader support
+    ["container|loader"] = Smarts.container_to_loader,
+    ["logistic-container|loader"] = Smarts.container_to_loader,
+    ["arithmetic-combinator|loader"] = Smarts.decider_arithmetic_combinator_to_loader,
+    ["decider-combinator|loader"] = Smarts.decider_arithmetic_combinator_to_loader,
+    ["constant-combinator|loader"] = Smarts.constant_combinator_to_loader,
+    ["assembling-machine|loader"] = Smarts.assembly_to_loader,
     --  Old actions
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
