@@ -861,6 +861,13 @@ Smarts.actions = {
     ["decider-combinator|loader"] = Smarts.decider_arithmetic_combinator_to_loader,
     ["constant-combinator|loader"] = Smarts.constant_combinator_to_loader,
     ["assembling-machine|loader"] = Smarts.assembly_to_loader,
+    --  Loader support  1x1
+    ["container|loader-1x1"] = Smarts.container_to_loader,
+    ["logistic-container|loader-1x1"] = Smarts.container_to_loader,
+    ["arithmetic-combinator|loader-1x1"] = Smarts.decider_arithmetic_combinator_to_loader,
+    ["decider-combinator|loader-1x1"] = Smarts.decider_arithmetic_combinator_to_loader,
+    ["constant-combinator|loader-1x1"] = Smarts.constant_combinator_to_loader,
+    ["assembling-machine|loader-1x1"] = Smarts.assembly_to_loader,
     --  Old actions
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
