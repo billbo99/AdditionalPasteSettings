@@ -17,7 +17,7 @@ data:extend(
             type = "double-setting",
             name = "additional-paste-settings-options-requester-multiplier-value",
             setting_type = "runtime-per-user",
-            minimum_value = 0,
+            -- minimum_value = 0,
             default_value = 1,
             order = "bb"
         },
@@ -38,7 +38,7 @@ data:extend(
             type = "double-setting",
             name = "additional-paste-settings-options-inserter-multiplier-value",
             setting_type = "runtime-per-user",
-            minimum_value = 0,
+            -- minimum_value = 0,
             default_value = 1,
             order = "cb"
         },
@@ -59,7 +59,7 @@ data:extend(
             type = "double-setting",
             name = "additional-paste-settings-options-transport_belt-multiplier-value",
             setting_type = "runtime-per-user",
-            minimum_value = 0,
+            -- minimum_value = 0,
             default_value = 1,
             order = "cd"
         },
@@ -80,7 +80,7 @@ data:extend(
             type = "double-setting",
             name = "additional-paste-settings-options-combinator-multiplier-value",
             setting_type = "runtime-per-user",
-            minimum_value = 0,
+            -- minimum_value = 0,
             default_value = 1,
             order = "db"
         },
@@ -102,7 +102,7 @@ data:extend(
             type = "double-setting",
             name = "additional-paste-settings-options-invert-buffer-multiplier-value",
             setting_type = "runtime-per-user",
-            minimum_value = 0,
+            -- minimum_value = 0,
             default_value = 1,
             order = "eb"
         },
