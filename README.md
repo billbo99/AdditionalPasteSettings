@@ -1,24 +1,26 @@
-# Equipment Grid Logistic Module
+This mod has been enhanced from the original mod .. https://mods.factorio.com/mod/additional-paste-settings
 
-This mod is based on .. https://mods.factorio.com/mod/logiquipment .. by dorfl
-Dorfl has moved away from "logiquipment" and combining several other ideas into the mod "Autodrive"
-I was finding "Autodrive" a little UPS heavy and only wanted the logistics functionality from the mod.
+Adds additional paste settings in the game (Shift+Right Click entity then Shift+Left Click another).
+See it in action here: https://gfycat.com/BonyBlissfulElephantbeetle
 
-This mod should work for Cars (Cars / Tanks / Planes) and Cargo Wagons
+- Copy from Machine -> Paste into Inserter: Sets the inserter's condition to be less than the stack's multiplier of the item being produced by the assembling machine. If it's connected to ANY wire network, it sets the condition to the circuit condition. If not connected to a wire network, set it based on the logistics condition.
+- Copy from Machine -> Paste into Logistic Chest: Allows you to choose how the requests is set. It can be: the item output Stack Size; by a multiplier of the Items Produced; or by Time Spent crafting the item. Has an option to invert logic for Buffer chests, to paste products instead of ingredients.
+- Copy and paste into SAME Inserter: Clears the logistics and circuit condition.
+- Copy and paste into SAME Requester/Buffer Chest: Clears the requests for that chest.
+Copy from Machine -> Paste into Constant Combinator: Sets the signals of the constant combinators based on the recipe ingredients of the assembling machine.
 
-Needs one of the vehicle grid mods!
+You have the option for the pasting to be additive. That means, instead of replacing the contents of the logistic chest/inserter, it will merge and/or add the amount of items. This allows for easy setup of multiple recipes into the same requester chest, or to easily increase the request/filter amount.
 
+The Configuration is found in Settings -> Mod Settings. Please configure it to your liking.
 
-How to use
-- Research "Equipment Grid Logistic Module", build one and insert into a car/cargo wagon equipment grid.
-- Set some trunk filtered slots (see screen shots). These will be treated like logistic request slots.
-- Park the car inside a logistics zone with robots -- mod won't activate if a car is moving.
-- Robots should arrive...
+___
+## Additional support has been added for
+- Train station renaming
+- Display plates
+- Loader filters
+- Decider/arithmetic combinators
 
-Note that:
-- Mod only ticks every few seconds, so be patient :)
-- There must be at least one trunk filter set for the mod to trigger.
-- Filtered trunk slots are used to set the request slots of a hidden requester chest.
-- Unfiltered trunk slots are considered trash and put into a hidden active provider chest.
-- If the current fuel is requested in a slot, fuel tank will be filled up first.
-- Entering and starting the car is fine -- items still in hidden chests will be reclaimed.
+Picture | Picture |
+--- | ---|
+![alt text](https://assets-mod.factorio.com/assets/c4504336d9acd9b823752f5feb6d9a3c61411ffe.png) | ![alt text](https://assets-mod.factorio.com/assets/27347056dba7cab3d7dc74fe9e3a88534e7f1857.png "display plates")|
+![alt text](https://assets-mod.factorio.com/assets/7a2c25b74cba558c6bef2dbe40878561e41b48cf.png "loaders")|![alt text](https://assets-mod.factorio.com/assets/714ce416d740d493eb89384cb78844719b2fb3b6.png "combinators")|
