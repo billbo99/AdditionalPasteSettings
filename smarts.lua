@@ -428,6 +428,58 @@ local function update_station(to, cycle)
     rename_train_stop(to)
 end
 
+local function configure_decider_arithmetic_combinator(to, special)
+    local entity = global.entity_data[to.unit_number]
+    local item = entity.cycle[entity.cycle_index]
+    if (not item) then return end
+
+    local ctrl = to.get_or_create_control_behavior()
+    local params = table.deepcopy(ctrl.parameters)
+    if special then
+        params.output_signal = { name = item.name, type = item.type }
+        msg = "Output condition set [img=item." .. item.name .. "]"
+    else
+        params.first_signal = { name = item.name, type = item.type }
+        msg = "First condition set [img=item." .. item.name .. "]"
+    end
+    ctrl.parameters = params
+
+    to.surface.create_entity { name = "flying-text", position = to.position, text = msg, color = lib.colors.white }
+
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+end
+
+local function update_decider_arithmetic_combinator(to, cycle, special)
+    global.entity_data[to.unit_number] = global.entity_data[to.unit_number] or {}
+    local entity = global.entity_data[to.unit_number]
+
+    if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
+        entity.cycle = cycle
+        entity.cycle_index = 1
+    end
+
+    configure_decider_arithmetic_combinator(to, special)
+end
+
+function Smarts.container_to_decider_arithmetic_combinator(from, to, player, special)
+    if special then special = true else special = false end
+    local cycle = container_cycle(from)
+    if #cycle > 0 then update_decider_arithmetic_combinator(to, cycle, special) end
+end
+
+function Smarts.assembling_to_decider_arithmetic_combinator(from, to, player, special)
+    if special then special = true else special = false end
+    local cycle = assembly_cycle(from)
+    if #cycle > 0 then update_decider_arithmetic_combinator(to, cycle, special) end
+end
+
+function Smarts.constant_combinator_to_decider_arithmetic_combinator(from, to, player, special)
+    if special then special = true else special = false end
+    local cycle = constant_combinator_cycle(from)
+    if #cycle > 0 then update_decider_arithmetic_combinator(to, cycle, special) end
+end
+
 function Smarts.constant_combinator_to_train_stop(from, to, player, special)
     local cycle = constant_combinator_cycle(from)
     if #cycle > 0 then update_station(to, cycle) end
@@ -868,6 +920,16 @@ Smarts.actions = {
     ["decider-combinator|loader-1x1"] = Smarts.decider_arithmetic_combinator_to_loader,
     ["constant-combinator|loader-1x1"] = Smarts.constant_combinator_to_loader,
     ["assembling-machine|loader-1x1"] = Smarts.assembly_to_loader,
+    --  To Decider combinator
+    ["container|decider-combinator"] = Smarts.container_to_decider_arithmetic_combinator,
+    ["logistic-container|decider-combinator"] = Smarts.container_to_decider_arithmetic_combinator,
+    ["assembling-machine|decider-combinator"] = Smarts.assembling_to_decider_arithmetic_combinator,
+    ["constant-combinator|decider-combinator"] = Smarts.constant_combinator_to_decider_arithmetic_combinator,
+    --  To Arithmetic combinator
+    ["container|arithmetic-combinator"] = Smarts.container_to_decider_arithmetic_combinator,
+    ["logistic-container|arithmetic-combinator"] = Smarts.container_to_decider_arithmetic_combinator,
+    ["assembling-machine|arithmetic-combinator"] = Smarts.assembling_to_decider_arithmetic_combinator,
+    ["constant-combinator|arithmetic-combinator"] = Smarts.constant_combinator_to_decider_arithmetic_combinator,
     --  Old actions
     ["assembling-machine|transport-belt"] = Smarts.assembly_to_transport_belt,
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,

@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.6.3
+Date: 2023.03.30
+  Changes:
+    - Added some love for pasting to decider/arithmetic combinators.  SHIFT click will paste to the first slot in the combinaotr, ALT+SHIFT click will past to the output slot.  Multiple pastes will cycle though the source list.
+---------------------------------------------------------------------------------------------------
 Version: 1.6.2
 Date: 2023.03.29
   Changes:
