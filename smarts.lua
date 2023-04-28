@@ -441,6 +441,13 @@ local function configure_decider_arithmetic_combinator(to, special)
     else
         params.first_signal = { name = item.name, type = item.type }
         msg = "First condition set [img=item." .. item.name .. "]"
+
+        -- Clear the output signal if invalid.
+        -- The output signal `each` (and `any`) is valid only if an input signal is `each` (and `any`) respectively.
+        if params.output_signal and (params.output_signal.name == "signal-any" or params.output_signal.name == "signal-each" and (not params.second_signal or params.output_signal.name ~= params.second_signal.name)) then
+            msg = msg .. " and output signal cleared"
+            params.output_signal = nil
+        end
     end
     ctrl.parameters = params
 

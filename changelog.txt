@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.6.4
+Date: 2023.04.28
+  Bugfixes:
+    - Crashes when pasting to a combinator with "ANY" or "EACH" set on output.  Thanks to @hyrdotoast for the fix
+---------------------------------------------------------------------------------------------------
 Version: 1.6.3
 Date: 2023.03.30
   Changes:
