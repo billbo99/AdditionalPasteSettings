@@ -95,7 +95,7 @@ data:extend(
             type = "bool-setting",
             name = "additional-paste-settings-options-request-from-buffer",
             setting_type = "runtime-per-user",
-            default_value = true,
+            default_value = false,
             order = "e0"
         },
         {

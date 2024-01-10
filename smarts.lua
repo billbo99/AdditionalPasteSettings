@@ -789,7 +789,7 @@ function Smarts.on_vanilla_paste(event)
             mtype = "additional-paste-settings-per-stack-size"
             multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer-multiplier-value"].value ---@cast multiplier double
         end
-        if requestFromBuffers and event.destination.prototype.logistic_mode == "requester" then
+        if event.destination.prototype.logistic_mode == "requester" then
             event.destination.request_from_buffers = requestFromBuffers
         end
 
