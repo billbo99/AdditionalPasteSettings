@@ -768,7 +768,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
-                if ctrl.circuit_enable_disable and ctrl.circuit_condition.first_signal.name == product then
+                if ctrl.circuit_enable_disable and ctrl.circuit_condition and ctrl.circuit_condition.first_signal and ctrl.circuit_condition.first_signal.name == product then
                     if ctrl.logistic_condition["constant"] ~= nil then
                         amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition.constant, fromRecipe, from.crafting_speed, additive, special)
                     end
