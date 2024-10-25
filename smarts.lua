@@ -764,21 +764,18 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                 else
                     ctrl.connect_to_logistic_network = true
                 end
-                ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
+                ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
-                if ctrl.circuit_mode_of_operation ==
-                    defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable and
-                    ctrl.circuit_condition["condition"]["first_signal"]["name"] == product then
-                    if ctrl.logistic_condition["condition"]["constant"] ~= nil then
-                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition["condition"]["constant"],
-                            fromRecipe, from.crafting_speed, additive, special)
+                if ctrl.circuit_enable_disable and ctrl.circuit_condition.first_signal.name == product then
+                    if ctrl.logistic_condition["constant"] ~= nil then
+                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition.constant, fromRecipe, from.crafting_speed, additive, special)
                     end
                 else
-                    ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.enable_disable
+                    ctrl.circuit_enable_disable = true
                 end
-                ctrl.circuit_condition = { condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount } }
+                ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
