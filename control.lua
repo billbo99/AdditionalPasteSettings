@@ -7,9 +7,9 @@ local Smarts = require("smarts")
 local function init_globals()
     -- enity_deta_data
 
-    global.event_backup = global.event_backup or {}
-    global.entity_data = global.entity_data or {} ---@type table<uint, EntityData>
-    global.locale_dictionaries = global.locale_dictionaries or {}
+    storage.event_backup = storage.event_backup or {}
+    storage.entity_data = storage.entity_data or {} ---@type table<uint, EntityData>
+    storage.locale_dictionaries = storage.locale_dictionaries or {}
 end
 
 local function register_events()

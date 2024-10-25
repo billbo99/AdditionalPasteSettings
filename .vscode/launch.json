@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "factoriomod",
+            "request": "launch",
+            "name": "Factorio Mod Debug",
+            "adjustMods": {
+                "AdditionalPasteSettings": true
+            },
+            "modsPath": "D:\\dev\\mods_AdditionalPasteSettings",
+            "disableExtraMods": false,
+            "hookLog": true,
+            "hookMode": "debug",
+            "hookData": false,
+            "hookControl": [
+                "AdditionalPasteSettings"
+            ],
+        }
+    ]
+}

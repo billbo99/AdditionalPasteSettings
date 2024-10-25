@@ -24,8 +24,8 @@ end
 ---@param item_type string
 ---@return string|nil
 lib.find_name_in_babelfish_dictonary = function(item_name, item_type)
-    if global.locale_dictionaries[item_type] and global.locale_dictionaries[item_type][item_name] then
-        return global.locale_dictionaries[item_type][item_name]
+    if storage.locale_dictionaries[item_type] and storage.locale_dictionaries[item_type][item_name] then
+        return storage.locale_dictionaries[item_type][item_name]
     end
     return item_name
 end
@@ -42,9 +42,9 @@ lib.parse_signal_to_rich_text = function(signal_data)
         end
 
         if config['switch_icon_format'] then
-            return string.format("[%s=%s]", text_type, signal_data.name)
+            return string.format("[%s=%s,quality=%s]", text_type, signal_data.name, signal_data.quality)
         else
-            return string.format("[img=%s/%s]", text_type, signal_data.name)
+            return string.format("[img=%s/%s][quality=%s]", text_type, signal_data.name, signal_data.quality)
         end
     end
     return nil

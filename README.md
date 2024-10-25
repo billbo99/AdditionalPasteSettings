@@ -1,5 +1,16 @@
 This mod has been enhanced from the original mod .. https://mods.factorio.com/mod/additional-paste-settings
 
+## Notes for 2.0
+- Using Quality icon not the best .. waiting on https://forums.factorio.com/viewtopic.php?f=28&t=117265
+- Pasting to new 2.x display plates does not work yet .. waiting on https://forums.factorio.com/viewtopic.php?f=28&t=116024&p=623916&hilit=display#p623916
+- Unable to set the quality on Storage Chest filters .. waiting on https://forums.factorio.com/viewtopic.php?f=28&t=117407
+- Added smart inserter .. if pulling from an assembler set filters on inserter to the product
+- Removed support (for now) for
+  - SE cargo landing pads
+  - Display plates
+  - Combinators
+
+
 Adds additional paste settings in the game (Shift+Right Click entity then Shift+Left Click another).
 See it in action here: https://gfycat.com/BonyBlissfulElephantbeetle
 
@@ -16,9 +27,9 @@ The Configuration is found in Settings -> Mod Settings. Please configure it to y
 ___
 ## Additional support has been added for
 - Train station renaming
-- Display plates
+- ~~Display plates~~
 - Loader filters
-- Decider/arithmetic combinators
+- ~~Decider/arithmetic combinators~~
 
 Picture | Picture |
 --- | ---|
