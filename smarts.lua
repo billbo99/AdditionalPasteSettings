@@ -334,17 +334,17 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     return 0
 end
 
-function Smarts.clear_requester_chest(from, to)
-    if from == to then
-        if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
-            for i = 1, to.request_slot_count do
-                to.clear_request_slot(i)
-            end
-        elseif to.prototype.logistic_mode == "storage" then
-            to.storage_filter = nil
-        end
-    end
-end
+-- function Smarts.clear_requester_chest(from, to)
+--     if from == to then
+--         if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" and to.request_slot_count and to.request_slot_count > 0 then
+--             for i = 1, to.request_slot_count do
+--                 to.clear_request_slot(i)
+--             end
+--         elseif to.prototype.logistic_mode == "storage" then
+--             to.storage_filter = nil
+--         end
+--     end
+-- end
 
 function Smarts.clear_inserter_settings(from, to, player, special)
     if from == to and
@@ -1030,7 +1030,7 @@ Smarts.actions = {
     ["assembling-machine|inserter"] = Smarts.assembly_to_inserter,
     ["assembling-machine|logistic-container"] = Smarts.assembly_to_logistic_chest,
     -- ["assembling-machine|constant-combinator"] = Smarts.assembly_to_constant_combinator,
-    ["logistic-container|logistic-container"] = Smarts.clear_requester_chest,
+    -- ["logistic-container|logistic-container"] = Smarts.clear_requester_chest,
     ["inserter|inserter"] = Smarts.clear_inserter_settings
 }
 
