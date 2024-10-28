@@ -757,7 +757,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
             local additive = settings.get_player_settings(player)["additional-paste-settings-options-sumup"].value
             local amount = update_stack(mtype, multiplier, item, nil, fromRecipe, from.crafting_speed, additive, special)
             if c1 == nil and c2 == nil then
-                if ctrl.connect_to_logistic_network and ctrl.logistic_condition.first_signal.name == product then
+                if ctrl.connect_to_logistic_network and ctrl.logistic_condition.first_signal and ctrl.logistic_condition.first_signal.name == product then
                     if ctrl.logistic_condition.constant ~= nil then
                         amount = update_stack(mtype, multiplier, item, ctrl.logistic_condition.constant, fromRecipe, from.crafting_speed, additive, special)
                     end
