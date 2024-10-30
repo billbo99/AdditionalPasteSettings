@@ -861,12 +861,15 @@ function Smarts.on_vanilla_paste(event)
         end
 
         local post_stacks = {}
-        for _, row in pairs(event.destination.get_requester_point().filters) do
-            if row and row.name then
-                local name = row.name .. "^" .. row.quality
-                post_stacks[name] = { name = row.name, count = row.count, quality = row.quality }
-                if (not evt.stacks[name]) then
-                    evt.stacks[name] = { name = row.name, count = 0, quality = row.quality }
+        local requester_point = event.destination.get_requester_point()
+        if requester_point and requester_point.filters and #requester_point.filters > 0 then
+            for _, row in pairs(requester_point.filters) do
+                if row and row.name then
+                    local name = row.name .. "^" .. row.quality
+                    post_stacks[name] = { name = row.name, count = row.count, quality = row.quality }
+                    if (not evt.stacks[name]) then
+                        evt.stacks[name] = { name = row.name, count = 0, quality = row.quality }
+                    end
                 end
             end
         end
