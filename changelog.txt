@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.6
+Date: 2024.11.02
+  Bugfixes:
+    - AdditionalPasteSettings/smarts.lua:356: attempt to index field 'circuitmodeofoperation' (a nil value)
+---------------------------------------------------------------------------------------------------
 Version: 2.0.5
 Date: 2024.10.30
   Bugfixes:

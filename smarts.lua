@@ -334,76 +334,28 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     return 0
 end
 
--- function Smarts.clear_requester_chest(from, to)
---     if from == to then
---         if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" and to.request_slot_count and to.request_slot_count > 0 then
---             for i = 1, to.request_slot_count do
---                 to.clear_request_slot(i)
---             end
---         elseif to.prototype.logistic_mode == "storage" then
---             to.storage_filter = nil
---         end
---     end
--- end
-
 function Smarts.clear_inserter_settings(from, to, player, special)
-    if from == to and
-        settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value then
+    local clear_inserter_flag = settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value
+    if from == to and clear_inserter_flag then
         local ctrl = to.get_or_create_control_behavior()
-        ctrl.logistic_condition = nil
+        -- Disable/clear circuit smarts
+        ctrl.circuit_enable_disable = false
         ctrl.circuit_condition = nil
+
+        -- Disable/clear logistic smarts
         ctrl.connect_to_logistic_network = false
-        ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.none
+        ctrl.logistic_condition = nil
+
+        -- Clear filters
+        from.use_filters = false
+        for idx = 1, from.filter_slot_count do
+            from.set_filter(idx, nil)
+        end
+
+        -- ctrl.connect_to_logistic_network = false
+        -- ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.none
     end
 end
-
--- ---Copy machine to constant combinator
--- ---@param from LuaEntity
--- ---@param to LuaEntity
--- ---@param player LuaPlayer
--- function Smarts.assembly_to_constant_combinator(from, to, player)
---     local multiplier = settings.get_player_settings(player)["additional-paste-settings-options-combinator-multiplier-value"].value ---@cast multiplier double
---     local mtype = settings.get_player_settings(player)["additional-paste-settings-options-combinator-multiplier-type"].value
---     local additive = settings.get_player_settings(player)["additional-paste-settings-options-sumup"].value
---     local recipe = from.get_recipe()
---     local amount = 0 ---@type int
---     local per_recipe_size = ("additional-paste-settings-per-recipe-size" == settings.get_player_settings(player)["additional-paste-settings-options-requester-multiplier-type"].value)
-
---     local current = nil
---     local found = false
---     local msg = ""
---     local ctrl = to.get_or_create_control_behavior() ---@cast ctrl LuaConstantCombinatorControlBehavior
---     if recipe then
---         for k = 1, #recipe.ingredients do
---             current = recipe.ingredients[k]
---             found = false
---             ---@type uint
---             for i = 1, ctrl.signals_count do
---                 local s = ctrl.get_signal(i)
---                 if s.signal ~= nil and s.signal.name == current.name then
---                     amount = update_stack(mtype, multiplier, { name = current.name }, s.count, recipe, from.crafting_speed, additive)
---                     ctrl.set_signal(i, { signal = { type = current.type, name = current.name }, count = amount })
---                     msg = msg .. "[img=" .. current.type .. "." .. current.name .. "] = " .. amount .. " "
---                     found = true
---                 end
---             end
-
---             if (not found) then
---                 ---@type uint
---                 for i = 1, ctrl.signals_count do
---                     local s = ctrl.get_signal(i)
---                     if s.signal == nil then
---                         amount = update_stack(mtype, multiplier, { name = current.name }, nil, recipe, from.crafting_speed, additive)
---                         ctrl.set_signal(i, { signal = { type = current.type, name = current.name }, count = amount })
---                         msg = msg .. "[img=" .. current.type .. "." .. current.name .. "] = " .. amount .. " "
---                         break
---                     end
---                 end
---             end
---         end
---         to.surface.create_entity { name = "flying-text", position = to.position, text = msg, color = lib.colors.white }
---     end
--- end
 
 function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
