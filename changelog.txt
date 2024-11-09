@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.8
+Date: 2024.11.09
+  Changes:
+    - Added feature from RedRaf to player settings to check requester chests to request from buffer
+    - Added player setting to clear filters set by vanilla factorio to inserter with filters enabled.
+  Bugfixes:
+    - Something was clearing control behaviour settings when "on_vanilla_paste" event occured
+---------------------------------------------------------------------------------------------------
 Version: 2.0.7
 Date: 2024.11.09
   Bugfixes:

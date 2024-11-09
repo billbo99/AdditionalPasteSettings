@@ -334,6 +334,30 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     return 0
 end
 
+function Smarts.EventBackupKey(src, dst)
+    local key = {}
+    key[1] = src.surface.name
+    key[2] = src.position.x
+    key[3] = src.position.y
+
+    key[4] = dst.surface.name
+    key[5] = dst.position.x
+    key[6] = dst.position.y
+
+    key_str = table.concat(key, "-")
+    return key_str
+end
+
+function Smarts.SetEventBackup(src, dst, value)
+    local key_str = Smarts.EventBackupKey(src, dst)
+    storage.event_backup[key_str] = value
+end
+
+function Smarts.GetEventBackup(src, dst)
+    local key_str = Smarts.EventBackupKey(src, dst)
+    return storage.event_backup[key_str]
+end
+
 function Smarts.CopyMetric(obj, metric)
     local status, err = pcall(function()
         if obj[metric] ~= nil then
@@ -387,7 +411,8 @@ end
 function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
     if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
-        storage.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
+        Smarts.SetEventBackup(from, to, { gamer = player.index, stacks = {} })
+        -- storage.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
     elseif to.prototype.logistic_mode == "storage" then
         if from.get_recipe() ~= nil then
             local msg
@@ -819,13 +844,15 @@ function Smarts.on_vanilla_pre_paste(event)
     local src_ctrl = src.get_or_create_control_behavior()
     local dst_ctrl = dst.get_or_create_control_behavior()
 
-    local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
+    -- local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
+    local evt = Smarts.GetEventBackup(src, dst)
     if not evt then
         evt = { gamer = event.player_index, stacks = {} }
-        evt.src_ctrl = Smarts.CopyControlBehavior(src_ctrl)
-        evt.dst_ctrl = Smarts.CopyControlBehavior(dst_ctrl)
-        storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = evt
     end
+
+    evt.src_ctrl = Smarts.CopyControlBehavior(src_ctrl)
+    evt.dst_ctrl = Smarts.CopyControlBehavior(dst_ctrl)
+
     if src.type == "assembling-machine" and dst.type == "logistic-container" and (dst.prototype.logistic_mode == "requester" or dst.prototype.logistic_mode == "buffer") then
         if evt ~= nil then
             local rows = dst.get_requester_point().filters
@@ -841,6 +868,9 @@ function Smarts.on_vanilla_pre_paste(event)
             end
         end
     end
+
+    -- storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = evt
+    Smarts.SetEventBackup(src, dst, evt)
 end
 
 ---@param event EventData.on_entity_settings_pasted
@@ -851,10 +881,12 @@ function Smarts.on_vanilla_paste(event)
     local src_ctrl = src.get_or_create_control_behavior()
     local dst_ctrl = dst.get_or_create_control_behavior()
 
-    local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
-    local player = game.get_player(event.player_index)
+    -- local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
+    local evt = Smarts.GetEventBackup(src, dst)
+    local player = game.get_player(event.player_index) ---@cast player LuaPlayer
 
-    if evt and src.type == "assembling-machine" and dst.type == "transport-belt" then
+    -- reapply old control behavior
+    if evt and evt.dst_ctrl then
         for key, value in pairs(evt.dst_ctrl) do
             pcall(function()
                 dst_ctrl[key] = value
@@ -965,8 +997,6 @@ function Smarts.on_vanilla_paste(event)
             end
             if player then player.create_local_flying_text({ text = msg, position = dst.position, color = lib.colors.white }) end
         end
-
-        storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = nil
     end
 
     -- Smart things with filters
@@ -982,6 +1012,20 @@ function Smarts.on_vanilla_paste(event)
             end
         end
     end
+
+    -- Disable filters
+    local disable_filters = settings.get_player_settings(player)["additional-paste-settings-options-disable_filters"].value
+    if disable_filters and dst.type == "inserter" then
+        if dst.use_filters then
+            dst.use_filters = false
+            for idx = 1, dst.filter_slot_count do
+                dst.set_filter(idx, nil)
+            end
+        end
+    end
+
+    -- storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = nil
+    Smarts.SetEventBackup(src, dst, nil)
 end
 
 function Smarts.get_translations()
