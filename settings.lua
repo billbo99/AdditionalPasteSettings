@@ -22,13 +22,6 @@ data:extend(
             order = "bb"
         },
         {
-            type = "bool-setting",
-            name = "additional-paste-settings-options-smart_filters",
-            setting_type = "runtime-per-user",
-            default_value = true,
-            order = "ca"
-        },
-        {
             type = "string-setting",
             name = "additional-paste-settings-options-inserter-multiplier-type",
             setting_type = "runtime-per-user",
@@ -48,6 +41,20 @@ data:extend(
             -- minimum_value = 0,
             default_value = 1,
             order = "cb"
+        },
+        {
+            type = "bool-setting",
+            name = "additional-paste-settings-options-smart_filters",
+            setting_type = "runtime-per-user",
+            default_value = true,
+            order = "cba"
+        },
+        {
+            type = "bool-setting",
+            name = "additional-paste-settings-options-disable_filters",
+            setting_type = "runtime-per-user",
+            default_value = false,
+            order = "cbb"
         },
         {
             type = "string-setting",

@@ -53,23 +53,23 @@ end
 --     return cycle
 -- end
 
------  DisplayPlate current sprite
----@param entity LuaEntity
----@return ItemCycle[]
-local function simple_entity_with_owner_cycle(entity)
-    local remote_interface
-    if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
-    if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
+-- -----  DisplayPlate current sprite
+-- ---@param entity LuaEntity
+-- ---@return ItemCycle[]
+-- local function simple_entity_with_owner_cycle(entity)
+--     local remote_interface
+--     if game.active_mods["IndustrialDisplayPlates"] then remote_interface = "IndustrialDisplayPlates" end
+--     if game.active_mods["DisplayPlates"] then remote_interface = "DisplayPlates" end
 
-    local interfaces = remote.interfaces[remote_interface]
-    if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return {} end
+--     local interfaces = remote.interfaces[remote_interface]
+--     if (not interfaces.get_sprite) and (not interfaces.set_sprite) then return {} end
 
-    local rv = remote.call(remote_interface, "get_sprite", { entity = entity })
-    if (not rv) then return {} end
+--     local rv = remote.call(remote_interface, "get_sprite", { entity = entity })
+--     if (not rv) then return {} end
 
-    local cycle = { { type = rv.spritetype, name = rv.spritename } }
-    return cycle
-end
+--     local cycle = { { type = rv.spritetype, name = rv.spritename } }
+--     return cycle
+-- end
 
 -----  Assembly Machine cycle
 ---@param entity LuaEntity
@@ -334,6 +334,60 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     return 0
 end
 
+function Smarts.EventBackupKey(src, dst)
+    local key = {}
+    key[1] = src.surface.name
+    key[2] = src.position.x
+    key[3] = src.position.y
+
+    key[4] = dst.surface.name
+    key[5] = dst.position.x
+    key[6] = dst.position.y
+
+    key_str = table.concat(key, "-")
+    return key_str
+end
+
+function Smarts.SetEventBackup(src, dst, value)
+    local key_str = Smarts.EventBackupKey(src, dst)
+    storage.event_backup[key_str] = value
+end
+
+function Smarts.GetEventBackup(src, dst)
+    local key_str = Smarts.EventBackupKey(src, dst)
+    return storage.event_backup[key_str]
+end
+
+function Smarts.CopyMetric(obj, metric)
+    local status, err = pcall(function()
+        if obj[metric] ~= nil then
+            return obj[metric]
+        else
+            return nil
+        end
+    end)
+    if status then return err else return nil end
+end
+
+function Smarts.CopyControlBehavior(obj)
+    local ctrl = {}
+
+    ctrl.read_contents = Smarts.CopyMetric(obj, 'read_contents')
+    ctrl.read_contents_mode = Smarts.CopyMetric(obj, 'read_contents_mode')
+    ctrl.circuit_read_contents = Smarts.CopyMetric(obj, 'circuit_read_contents')
+    ctrl.circuit_read_ingredients = Smarts.CopyMetric(obj, 'circuit_read_ingredients')
+    ctrl.circuit_read_recipe_finished = Smarts.CopyMetric(obj, 'circuit_read_recipe_finished')
+    ctrl.circuit_read_working = Smarts.CopyMetric(obj, 'circuit_read_working')
+    ctrl.circuit_set_recipe = Smarts.CopyMetric(obj, 'circuit_set_recipe')
+    ctrl.circuit_condition = Smarts.CopyMetric(obj, 'circuit_condition')
+    ctrl.circuit_enable_disable = Smarts.CopyMetric(obj, 'circuit_enable_disable')
+    ctrl.connect_to_logistic_network = Smarts.CopyMetric(obj, 'connect_to_logistic_network')
+    ctrl.disabled = Smarts.CopyMetric(obj, 'disabled')
+    ctrl.logistic_condition = Smarts.CopyMetric(obj, 'logistic_condition')
+
+    return ctrl
+end
+
 function Smarts.clear_inserter_settings(from, to, player, special)
     local clear_inserter_flag = settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value
     if from == to and clear_inserter_flag then
@@ -351,16 +405,14 @@ function Smarts.clear_inserter_settings(from, to, player, special)
         for idx = 1, from.filter_slot_count do
             from.set_filter(idx, nil)
         end
-
-        -- ctrl.connect_to_logistic_network = false
-        -- ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.none
     end
 end
 
 function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
     if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
-        storage.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
+        Smarts.SetEventBackup(from, to, { gamer = player.index, stacks = {} })
+        -- storage.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
     elseif to.prototype.logistic_mode == "storage" then
         if from.get_recipe() ~= nil then
             local msg
@@ -576,18 +628,21 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
     end
 
     local ctrl = to.get_or_create_control_behavior()
-    local c1 = ctrl.get_circuit_network(defines.wire_type.red)
-    local c2 = ctrl.get_circuit_network(defines.wire_type.green)
+    local c1 = ctrl.get_circuit_network(defines.wire_connector_id.circuit_red)
+    local c2 = ctrl.get_circuit_network(defines.wire_connector_id.circuit_green)
 
-    local fromRecipe = from.get_recipe()
+    local fromRecipe, fromQuality = from.get_recipe()
 
     if fromRecipe == nil then
-        if c1 == nil and c2 == nil then
+        -- clear logistic
+        if ctrl.connect_to_logistic_network then
             ctrl.logistic_condition = nil
             ctrl.connect_to_logistic_network = false
-        else
+        end
+        -- clear circuit
+        if ctrl.circuit_enable_disable then
             ctrl.circuit_condition = nil
-            ctrl.enable_disable = false
+            ctrl.circuit_enable_disable = false
         end
     else
         local product = fromRecipe.products[1].name
@@ -600,27 +655,27 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
             local additive = settings.get_player_settings(player)["additional-paste-settings-options-sumup"].value
             local amount = update_stack(mtype, multiplier, item, nil, fromRecipe, from.crafting_speed, additive, special)
             if c1 == nil and c2 == nil then
-                if ctrl.connect_to_logistic_network and
-                    ctrl.logistic_condition["condition"]["first_signal"]["name"] == product then
-                    if ctrl.logistic_condition["condition"]["constant"] ~= nil then
-                        amount = update_stack(mtype, multiplier, item, ctrl.logistic_condition["condition"]["constant"],
-                            fromRecipe, from.crafting_speed, additive, special)
+                if ctrl.connect_to_logistic_network and ctrl.logistic_condition["first_signal"]["name"] == product then
+                    if ctrl.logistic_condition["constant"] ~= nil then
+                        amount = update_stack(mtype, multiplier, item, ctrl.logistic_condition["constant"], fromRecipe, from.crafting_speed, additive, special)
                     end
                 else
                     ctrl.connect_to_logistic_network = true
                 end
-                ctrl.logistic_condition = { condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount } }
-                to.surface.create_entity { name = "flying-text", position = to.position, text = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount), color = lib.colors.white }
+                ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
+                local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
+                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
-                if ctrl.enable_disable and ctrl.circuit_condition["condition"]["first_signal"]["name"] == product then
-                    if ctrl.logistic_condition["condition"]["constant"] ~= nil then
-                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition["condition"]["constant"], fromRecipe, from.crafting_speed, additive, special)
+                if ctrl.circuit_enable_disable and ctrl.circuit_condition["first_signal"]["name"] == product then
+                    if ctrl.circuit_condition["constant"] ~= nil then
+                        amount = update_stack(mtype, multiplier, item, ctrl.circuit_condition["constant"], fromRecipe, from.crafting_speed, additive, special)
                     end
                 else
-                    ctrl.enable_disable = true
+                    ctrl.circuit_enable_disable = true
                 end
-                ctrl.circuit_condition = { condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount } }
-                to.surface.create_entity { name = "flying-text", position = to.position, text = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount), color = lib.colors.white }
+                ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
+                local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
+                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
         end
     end
@@ -685,18 +740,26 @@ end
 
 function Smarts.assembly_to_inserter(from, to, player, special)
     local ctrl = to.get_or_create_control_behavior()
-    local c1 = ctrl.get_circuit_network(defines.wire_type.red)
-    local c2 = ctrl.get_circuit_network(defines.wire_type.green)
+    local c1 = ctrl.get_circuit_network(defines.wire_connector_id.circuit_red)
+    local c2 = ctrl.get_circuit_network(defines.wire_connector_id.circuit_green)
 
     local fromRecipe, quality = from.get_recipe()
 
     if fromRecipe == nil then
-        if c1 == nil and c2 == nil then
+        -- clear logistic
+        if ctrl.connect_to_logistic_network then
             ctrl.logistic_condition = nil
             ctrl.connect_to_logistic_network = false
-        else
+        end
+        -- clear circuit
+        if ctrl.circuit_enable_disable then
             ctrl.circuit_condition = nil
-            ctrl.circuit_mode_of_operation = defines.control_behavior.inserter.circuit_mode_of_operation.none
+            ctrl.circuit_enable_disable = false
+        end
+        -- Clear filters
+        to.use_filters = false
+        for idx = 1, to.filter_slot_count do
+            to.set_filter(idx, nil)
         end
     else
         local product = fromRecipe.products[1].name
@@ -775,11 +838,24 @@ end
 
 ---@param event EventData.on_pre_entity_settings_pasted
 function Smarts.on_vanilla_pre_paste(event)
-    if event.source.type == "assembling-machine" and event.destination.type == "logistic-container" and (event.destination.prototype.logistic_mode == "requester" or event.destination.prototype.logistic_mode == "buffer") then
-        local evt = storage.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y]
+    local src = event.source
+    local dst = event.destination
 
+    local src_ctrl = src.get_or_create_control_behavior()
+    local dst_ctrl = dst.get_or_create_control_behavior()
+
+    -- local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
+    local evt = Smarts.GetEventBackup(src, dst)
+    if not evt then
+        evt = { gamer = event.player_index, stacks = {} }
+    end
+
+    evt.src_ctrl = Smarts.CopyControlBehavior(src_ctrl)
+    evt.dst_ctrl = Smarts.CopyControlBehavior(dst_ctrl)
+
+    if src.type == "assembling-machine" and dst.type == "logistic-container" and (dst.prototype.logistic_mode == "requester" or dst.prototype.logistic_mode == "buffer") then
         if evt ~= nil then
-            local rows = event.destination.get_requester_point().filters
+            local rows = dst.get_requester_point().filters
             if rows then
                 for _, row in pairs(rows) do
                     local name = row.name .. "^" .. row.quality
@@ -792,32 +868,51 @@ function Smarts.on_vanilla_pre_paste(event)
             end
         end
     end
+
+    -- storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = evt
+    Smarts.SetEventBackup(src, dst, evt)
 end
 
 ---@param event EventData.on_entity_settings_pasted
 function Smarts.on_vanilla_paste(event)
-    local evt = storage.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y]
-    local player = game.get_player(event.player_index)
+    local src = event.source
+    local dst = event.destination
 
-    if evt ~= nil and event.source.type == "assembling-machine" and event.destination.type == "logistic-container" and (event.destination.prototype.logistic_mode == "requester" or event.destination.prototype.logistic_mode == "buffer") then
+    local src_ctrl = src.get_or_create_control_behavior()
+    local dst_ctrl = dst.get_or_create_control_behavior()
+
+    -- local evt = storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y]
+    local evt = Smarts.GetEventBackup(src, dst)
+    local player = game.get_player(event.player_index) ---@cast player LuaPlayer
+
+    -- reapply old control behavior
+    if evt and evt.dst_ctrl then
+        for key, value in pairs(evt.dst_ctrl) do
+            pcall(function()
+                dst_ctrl[key] = value
+            end)
+        end
+    end
+
+    if evt ~= nil and src.type == "assembling-machine" and dst.type == "logistic-container" and (dst.prototype.logistic_mode == "requester" or dst.prototype.logistic_mode == "buffer") then
         local result = {}
         local multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-value"].value ---@cast multiplier double
         local mtype = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-type"].value
-        local recipe, quality = event.source.get_recipe()
-        local speed = event.source.crafting_speed
+        local recipe, quality = src.get_recipe()
+        local speed = src.crafting_speed
         local additive = settings.get_player_settings(event.player_index)["additional-paste-settings-options-sumup"].value
-        local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and event.destination.prototype.logistic_mode == "buffer"
-        local requestFromBuffers = settings.get_player_settings(event.player_index)["additional-paste-settings-options-request-from-buffer"].value
-        if invertPaste and event.destination.prototype.logistic_mode == "buffer" then
+        local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and dst.prototype.logistic_mode == "buffer"
+        local requestFromBuffers = settings.get_player_settings(event.player_index)["additional-paste-settings-options-request-from-buffer"].value ---@cast requestFromBuffers boolean
+        if invertPaste and dst.prototype.logistic_mode == "buffer" then
             mtype = "additional-paste-settings-per-stack-size"
             multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer-multiplier-value"].value ---@cast multiplier double
         end
-        if event.destination.prototype.logistic_mode == "requester" then
-            event.destination.request_from_buffers = requestFromBuffers
+        if dst.prototype.logistic_mode == "requester" then
+            dst.request_from_buffers = requestFromBuffers
         end
 
         local post_stacks = {}
-        local requester_point = event.destination.get_requester_point()
+        local requester_point = dst.get_requester_point()
         if requester_point and requester_point.filters and #requester_point.filters > 0 then
             for _, row in pairs(requester_point.filters) do
                 if row and row.name then
@@ -883,8 +978,8 @@ function Smarts.on_vanilla_paste(event)
             end
         end
 
-        if event.destination.get_requester_point() and event.destination.get_requester_point().get_section(1) then
-            local section = event.destination.get_requester_point().get_section(1)
+        if dst.get_requester_point() and dst.get_requester_point().get_section(1) then
+            local section = dst.get_requester_point().get_section(1)
             for idx, _ in pairs(section.filters) do
                 section.clear_slot(idx)
             end
@@ -900,16 +995,14 @@ function Smarts.on_vanilla_paste(event)
                     i = i + 1
                 end
             end
-            if player then player.create_local_flying_text({ text = msg, position = event.destination.position, color = lib.colors.white }) end
+            if player then player.create_local_flying_text({ text = msg, position = dst.position, color = lib.colors.white }) end
         end
-
-        storage.event_backup[event.source.position.x .. "-" .. event.source.position.y .. "-" .. event.destination.position.x .. "-" .. event.destination.position.y] = nil
     end
 
     -- Smart things with filters
     local smart_filters = settings.get_player_settings(player)["additional-paste-settings-options-smart_filters"].value
-    if smart_filters and event.source.type == "assembling-machine" and event.destination.type == "inserter" then
-        local inserter = event.destination
+    if smart_filters and src.type == "assembling-machine" and dst.type == "inserter" then
+        local inserter = dst
         local pickup_target = inserter.pickup_target --@cast LuaEntity
         if pickup_target and pickup_target.type == "assembling-machine" then
             local recipe, quality = pickup_target.get_recipe()
@@ -919,6 +1012,20 @@ function Smarts.on_vanilla_paste(event)
             end
         end
     end
+
+    -- Disable filters
+    local disable_filters = settings.get_player_settings(player)["additional-paste-settings-options-disable_filters"].value
+    if disable_filters and dst.type == "inserter" then
+        if dst.use_filters then
+            dst.use_filters = false
+            for idx = 1, dst.filter_slot_count do
+                dst.set_filter(idx, nil)
+            end
+        end
+    end
+
+    -- storage.event_backup[src.position.x .. "-" .. src.position.y .. "-" .. dst.position.x .. "-" .. dst.position.y] = nil
+    Smarts.SetEventBackup(src, dst, nil)
 end
 
 function Smarts.get_translations()
