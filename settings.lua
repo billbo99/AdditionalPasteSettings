@@ -100,6 +100,13 @@ data:extend(
         },
         {
             type = "bool-setting",
+            name = "additional-paste-settings-options-request-from-buffer",
+            setting_type = "runtime-per-user",
+            default_value = false,
+            order = "e0"
+        },
+        {
+            type = "bool-setting",
             name = "additional-paste-settings-options-invert-buffer",
             setting_type = "runtime-per-user",
             default_value = false,
