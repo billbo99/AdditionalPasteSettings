@@ -807,9 +807,13 @@ function Smarts.on_vanilla_paste(event)
         local speed = event.source.crafting_speed
         local additive = settings.get_player_settings(event.player_index)["additional-paste-settings-options-sumup"].value
         local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and event.destination.prototype.logistic_mode == "buffer"
+        local requestFromBuffers = settings.get_player_settings(event.player_index)["additional-paste-settings-options-request-from-buffer"].value
         if invertPaste and event.destination.prototype.logistic_mode == "buffer" then
             mtype = "additional-paste-settings-per-stack-size"
             multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer-multiplier-value"].value ---@cast multiplier double
+        end
+        if event.destination.prototype.logistic_mode == "requester" then
+            event.destination.request_from_buffers = requestFromBuffers
         end
 
         local post_stacks = {}
