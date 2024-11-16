@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.9
+Date: 2024.11.16
+  Bugfixes:
+    - Copying from chest to loader
+    - Revisted caching control behaviour settings when "on_vanilla_paste" event occurs
+---------------------------------------------------------------------------------------------------
 Version: 2.0.8
 Date: 2024.11.09
   Changes:
