@@ -433,7 +433,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
             local recipe, quality = from.get_recipe()
             local proto = prototypes.item[recipe.name]
             if proto then
-                to.storage_filter = proto
+                to.storage_filter = { name = proto.name, quality = quality.name }
                 msg = "Filter applied [img=item." .. from.get_recipe().name .. "]"
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
@@ -445,7 +445,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
                     end
                 end
                 if proto then
-                    to.storage_filter = proto
+                    to.storage_filter = { name = proto.name, quality = quality.name }
                     msg = "Filter applied [img=item." .. proto.name .. "]"
                     if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
                 end
