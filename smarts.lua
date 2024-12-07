@@ -896,6 +896,8 @@ function Smarts.on_vanilla_paste(event)
     local src = event.source
     local dst = event.destination
 
+    if src.type == "inserter" and dst.type == "inserter" then return end
+
     local src_ctrl = src.get_or_create_control_behavior()
     local dst_ctrl = dst.get_or_create_control_behavior()
 
