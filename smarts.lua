@@ -1034,7 +1034,7 @@ function Smarts.on_vanilla_paste(event)
         local pickup_target = inserter.pickup_target --@cast LuaEntity
         if pickup_target and pickup_target.type == "assembling-machine" then
             local recipe, quality = pickup_target.get_recipe()
-            if recipe and recipe.products[1] then
+            if recipe and recipe.products[1] and recipe.products[1].type ~= 'fluid' then
                 for i = 1, inserter.filter_slot_count do inserter.set_filter(i, nil) end
                 inserter.set_filter(1, { name = recipe.products[1].name, quality = quality.name })
             end

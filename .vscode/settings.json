@@ -13,8 +13,7 @@
     "factorio.versions": [
         {
             "name": "latest",
-            "factorioPath": "d:\\dev\\server.latest\\bin\\x64\\factorio.exe",
-            "active": true
+            "factorioPath": "d:\\dev\\server.latest\\bin\\x64\\factorio.exe"
         },
         {
             "name": "1.1.61",
