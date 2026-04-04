@@ -433,6 +433,10 @@ function Smarts.clear_inserter_settings(from, to, player, special)
         for idx = 1, from.filter_slot_count do
             from.set_filter(idx, nil)
         end
+        local ed = storage.entity_data[to.unit_number]
+        if ed then
+            ed.assembly_paste_key = nil
+        end
     end
 end
 
@@ -841,6 +845,52 @@ local function set_loader_filter(loader, player)
     if player then player.create_local_flying_text({ text = msg, position = loader.position, color = lib.colors.white }) end
 end
 
+---@param inserter LuaEntity
+---@param items ItemCycle[]
+---@param player LuaPlayer|nil
+local function apply_all_inserter_filter_slots(inserter, items, player)
+    inserter.use_filters = false
+    for idx = 1, inserter.filter_slot_count do
+        inserter.set_filter(idx, nil)
+    end
+    local n = math.min(inserter.filter_slot_count, #items)
+    for idx = 1, n do
+        local v = items[idx]
+        inserter.set_filter(idx, { name = v.name, quality = v.quality or "normal" })
+    end
+    if n > 0 then
+        inserter.use_filters = true
+    end
+    if player and n > 0 then
+        player.create_local_flying_text({ text = "Filters " .. n .. "/" .. inserter.filter_slot_count, position = inserter.position, color = lib.colors.white })
+    end
+end
+
+--- Rotate single inserter filter (slot 1), same pattern as set_loader_filter.
+---@param inserter LuaEntity
+---@param player LuaPlayer|nil
+local function set_inserter_cycle_filter(inserter, player)
+    local entity = storage.entity_data[inserter.unit_number]
+    if not entity then return end
+    entity.cycle = cycle_for_loader_filters(entity.cycle)
+    if #entity.cycle == 0 then return end
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+    local item = entity.cycle[entity.cycle_index]
+    if not item then return end
+
+    inserter.use_filters = true
+    for idx = 1, inserter.filter_slot_count do
+        inserter.set_filter(idx, nil)
+    end
+    inserter.set_filter(1, { name = item.name, quality = item.quality or "normal" })
+    entity.cycle_index = entity.cycle_index + 1
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
+    local msg = "Apply filter " .. "[img=item." .. item.name .. "]"
+    if player then player.create_local_flying_text({ text = msg, position = inserter.position, color = lib.colors.white }) end
+end
+
 local function update_loader(to, cycle, player)
     cycle = cycle_for_loader_filters(cycle)
     if #cycle == 0 then return end
@@ -920,6 +970,10 @@ function Smarts.assembly_to_inserter(from, to, player, special)
         for idx = 1, to.filter_slot_count do
             to.set_filter(idx, nil)
         end
+        local ed = storage.entity_data[to.unit_number]
+        if ed then
+            ed.assembly_paste_key = nil
+        end
     else
         local product = fromRecipe.products[1].name
         local item = prototypes.item[product]
@@ -955,21 +1009,25 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
-            -- -- Smart things with filters
-            -- local smart_filters = settings.get_player_settings(player)["additional-paste-settings-options-smart_filters"].value
-            -- if smart_filters then
-            --     local drop_target = to.drop_target
-            --     local pickup_target = to.pickup_target
-            --     local recipe, quality = pickup_target.get_recipe()
-            --     if recipe and recipe.products[1] then
-            --         -- clear all filters first
-            --         for i = 1, to.filter_slot_count do
-            --             local current_filters = to.get_filter(i)
-            --             to.set_filter(i, nil)
-            --         end
-            --         to.set_filter(1, { name = recipe.products[1].name, quality = quality.name })
-            --     end
-            -- end
+        end
+
+        -- Item filters: first paste fills all slots from recipe; same assembler+recipe then rotates slot 1 (like loader).
+        local filter_cycle = assembly_cycle(from)
+        filter_cycle = cycle_for_loader_filters(filter_cycle)
+        filter_cycle = dedupe_item_cycles_preserve_order(filter_cycle)
+        if #filter_cycle > 0 then
+            local quality_name = quality and quality.name or "normal"
+            local asm_key = tostring(from.unit_number) .. ":" .. fromRecipe.name .. ":" .. quality_name
+            storage.entity_data[to.unit_number] = storage.entity_data[to.unit_number] or {}
+            local entity = storage.entity_data[to.unit_number]
+            entity.cycle = filter_cycle
+            if entity.assembly_paste_key == asm_key then
+                set_inserter_cycle_filter(to, player)
+            else
+                entity.cycle_index = 1
+                entity.assembly_paste_key = asm_key
+                apply_all_inserter_filter_slots(to, filter_cycle, player)
+            end
         end
     end
 end
