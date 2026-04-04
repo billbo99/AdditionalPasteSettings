@@ -472,6 +472,25 @@ function Smarts.CopyControlBehavior(obj)
     return ctrl
 end
 
+--- Logical entity kind for paste routing; blueprint ghosts use `ghost_type`.
+---@param ent LuaEntity
+---@return string
+local function entity_action_type(ent)
+    if ent.valid and ent.type == "entity-ghost" and ent.ghost_type then
+        return ent.ghost_type
+    end
+    return ent.type
+end
+
+--- Prototype of built entity; for `entity-ghost`, the inner ghost target.
+---@param ent LuaEntity
+local function entity_effective_prototype(ent)
+    if ent.type == "entity-ghost" and ent.ghost_prototype then
+        return ent.ghost_prototype
+    end
+    return ent.prototype
+end
+
 function Smarts.clear_inserter_settings(from, to, player, special)
     local clear_inserter_flag = settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value
     if from == to and clear_inserter_flag then
@@ -498,10 +517,11 @@ end
 
 function Smarts.assembly_to_logistic_chest(from, to, player, special)
     -- this needs additional logic from events on_vanilla_pre_paste and on_vanilla_paste to correctly set the filter
-    if to.prototype.logistic_mode == "requester" or to.prototype.logistic_mode == "buffer" then
+    local to_proto = entity_effective_prototype(to)
+    if to_proto.logistic_mode == "requester" or to_proto.logistic_mode == "buffer" then
         Smarts.SetEventBackup(from, to, { gamer = player.index, stacks = {} })
         -- storage.event_backup[from.position.x .. "-" .. from.position.y .. "-" .. to.position.x .. "-" .. to.position.y] = { gamer = player.index, stacks = {} }
-    elseif to.prototype.logistic_mode == "storage" then
+    elseif to_proto.logistic_mode == "storage" then
         if from.get_recipe() ~= nil then
             local msg
             local recipe, quality = from.get_recipe()
@@ -940,7 +960,7 @@ local function paste_filters_between_entities(from, to, player)
         local f = list[idx]
         to.set_filter(idx, { name = f.name, quality = f.quality })
     end
-    if to.type == "inserter" then
+    if entity_action_type(to) == "inserter" then
         to.use_filters = n > 0
     end
     if player and n > 0 then
@@ -965,6 +985,9 @@ local function set_loader_filter(loader, player)
     if not entity then return end
     entity.cycle = cycle_for_loader_filters(entity.cycle)
     if #entity.cycle == 0 then return end
+    if type(entity.cycle_index) ~= "number" or entity.cycle_index < 1 then
+        entity.cycle_index = 1
+    end
     if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
 
     local item = entity.cycle[entity.cycle_index]
@@ -1072,7 +1095,7 @@ function Smarts.assembly_to_loader(from, to, player, special)
     if entity.assembly_paste_key == asm_key then
         set_loader_filter(to, player)
     else
-        entity.q = 1
+        entity.cycle_index = 1
         entity.assembly_paste_key = asm_key
         apply_all_loader_filter_slots(to, cycle, player)
     end
@@ -1190,8 +1213,8 @@ function Smarts.on_hotkey_pressed(event)
         local from = player.entity_copy_source
         local to = player.selected
 
-        if from ~= nil and to ~= nil then
-            local key = from.type .. "|" .. to.type
+        if from ~= nil and to ~= nil and from.valid and to.valid then
+            local key = entity_action_type(from) .. "|" .. entity_action_type(to)
             local act = Smarts.actions[key]
 
             if act ~= nil then
@@ -1218,7 +1241,8 @@ function Smarts.on_vanilla_pre_paste(event)
     evt.src_ctrl = Smarts.CopyControlBehavior(src_ctrl)
     evt.dst_ctrl = Smarts.CopyControlBehavior(dst_ctrl)
 
-    if src.type == "assembling-machine" and dst.type == "logistic-container" and (dst.prototype.logistic_mode == "requester" or dst.prototype.logistic_mode == "buffer") then
+    local dst_proto = entity_effective_prototype(dst)
+    if entity_action_type(src) == "assembling-machine" and entity_action_type(dst) == "logistic-container" and (dst_proto.logistic_mode == "requester" or dst_proto.logistic_mode == "buffer") then
         if evt ~= nil then
             local rows = dst.get_requester_point().filters
             if rows then
@@ -1243,7 +1267,7 @@ function Smarts.on_vanilla_paste(event)
     local src = event.source
     local dst = event.destination
 
-    if src.type == "inserter" and dst.type == "inserter" then return end
+    if entity_action_type(src) == "inserter" and entity_action_type(dst) == "inserter" then return end
 
     local src_ctrl = src.get_or_create_control_behavior()
     local dst_ctrl = dst.get_or_create_control_behavior()
@@ -1269,20 +1293,21 @@ function Smarts.on_vanilla_paste(event)
         end
     end
 
-    if evt ~= nil and src.type == "assembling-machine" and dst.type == "logistic-container" and (dst.prototype.logistic_mode == "requester" or dst.prototype.logistic_mode == "buffer") then
+    local dst_proto_paste = entity_effective_prototype(dst)
+    if evt ~= nil and entity_action_type(src) == "assembling-machine" and entity_action_type(dst) == "logistic-container" and (dst_proto_paste.logistic_mode == "requester" or dst_proto_paste.logistic_mode == "buffer") then
         local result = {}
         local multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-value"].value ---@cast multiplier double
         local mtype = settings.get_player_settings(event.player_index)["additional-paste-settings-options-requester-multiplier-type"].value
         local recipe, quality = src.get_recipe()
         local speed = src.crafting_speed
         local additive = settings.get_player_settings(event.player_index)["additional-paste-settings-options-sumup"].value
-        local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and dst.prototype.logistic_mode == "buffer"
+        local invertPaste = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer"].value and dst_proto_paste.logistic_mode == "buffer"
         local requestFromBuffers = settings.get_player_settings(event.player_index)["additional-paste-settings-options-request-from-buffer"].value ---@cast requestFromBuffers boolean
-        if invertPaste and dst.prototype.logistic_mode == "buffer" then
+        if invertPaste and dst_proto_paste.logistic_mode == "buffer" then
             mtype = "additional-paste-settings-per-stack-size"
             multiplier = settings.get_player_settings(event.player_index)["additional-paste-settings-options-invert-buffer-multiplier-value"].value ---@cast multiplier double
         end
-        if dst.prototype.logistic_mode == "requester" then
+        if dst_proto_paste.logistic_mode == "requester" then
             dst.request_from_buffers = requestFromBuffers
         end
 
@@ -1376,10 +1401,10 @@ function Smarts.on_vanilla_paste(event)
 
     -- Smart things with filters
     local smart_filters = settings.get_player_settings(player)["additional-paste-settings-options-smart_filters"].value
-    if smart_filters and src.type == "assembling-machine" and dst.type == "inserter" then
+    if smart_filters and entity_action_type(src) == "assembling-machine" and entity_action_type(dst) == "inserter" then
         local inserter = dst
         local pickup_target = inserter.pickup_target --@cast LuaEntity
-        if pickup_target and pickup_target.type == "assembling-machine" then
+        if pickup_target and entity_action_type(pickup_target) == "assembling-machine" then
             local recipe, quality = pickup_target.get_recipe()
             if recipe and recipe.products[1] and recipe.products[1].type ~= 'fluid' then
                 for i = 1, inserter.filter_slot_count do inserter.set_filter(i, nil) end
@@ -1390,7 +1415,7 @@ function Smarts.on_vanilla_paste(event)
 
     -- Disable filters
     local disable_filters = settings.get_player_settings(player)["additional-paste-settings-options-disable_filters"].value
-    if disable_filters and dst.type == "inserter" then
+    if disable_filters and entity_action_type(dst) == "inserter" then
         if dst.use_filters then
             dst.use_filters = false
             for idx = 1, dst.filter_slot_count do
