@@ -158,6 +158,20 @@ data:extend(
             order = "ec"
         },
         {
+            type = "bool-setting",
+            name = "additional-paste-settings-options-train-stop-assembler-products-load-unload-then-input-unloads",
+            setting_type = "runtime-per-user",
+            default_value = false,
+            order = "ed"
+        },
+        {
+            type = "bool-setting",
+            name = "additional-paste-settings-options-train-stop-assembler-ltn-inputs-bundle-step",
+            setting_type = "runtime-per-user",
+            default_value = false,
+            order = "ee"
+        },
+        {
             type = "string-setting",
             name = "additional-paste-settings-station_name_load",
             setting_type = "runtime-global",
@@ -172,6 +186,14 @@ data:extend(
             allow_blank = false,
             default_value = "Unload __1__ (__2__)",
             order = "zb"
+        },
+        {
+            type = "string-setting",
+            name = "additional-paste-settings-station_name_ltn_all_inputs",
+            setting_type = "runtime-global",
+            allow_blank = false,
+            default_value = "LTN __1__",
+            order = "zc"
         },
         {
             type = "bool-setting",

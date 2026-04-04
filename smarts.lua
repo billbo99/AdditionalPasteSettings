@@ -92,6 +92,62 @@ local function assembly_cycle(entity)
     return cycle
 end
 
+---@param ingredients table[]
+---@param qname string
+---@return string
+local function build_ltn_all_inputs_station_name(ingredients, qname)
+    if not ingredients or #ingredients == 0 then return "" end
+    local icons = {}
+    local names = {}
+    for _, v in ipairs(ingredients) do
+        local item = { name = v.name, type = v.type, quality = qname }
+        table.insert(icons, lib.parse_signal_to_rich_text(item))
+        local nm
+        if config["use_Babelfish"] then
+            nm = lib.find_name_in_babelfish_dictonary(item.name, item.type)
+        else
+            nm = item.name
+        end
+        table.insert(names, nm)
+    end
+    local fmt = config["station_name_ltn_all_inputs"] or "LTN __1__"
+    return lib.parse_string(fmt, { table.concat(icons, " "), table.concat(names, ", ") })
+end
+
+--- Train stop naming from assembler: each product → Load then Unload; optional LTN bundle of all inputs; each ingredient → Unload only.
+---@param assembler LuaEntity
+---@param player LuaPlayer|nil
+---@return { item?: ItemCycle, use_load_template?: boolean, custom_station_name?: string }[]
+local function assembler_train_schedule_from_recipe(assembler, player)
+    local recipe, quality = assembler.get_recipe()
+    if not recipe then return {} end
+    local qname = quality and quality.name or "normal"
+    local schedule = {}
+
+    for _, v in ipairs(recipe.products) do
+        local item = { name = v.name, type = v.type, quality = qname }
+        table.insert(schedule, { item = item, use_load_template = true })
+        table.insert(schedule, { item = item, use_load_template = false })
+    end
+
+    local ltn_bundle = player
+        and player.valid
+        and settings.get_player_settings(player)["additional-paste-settings-options-train-stop-assembler-ltn-inputs-bundle-step"].value
+    if ltn_bundle and recipe.ingredients and #recipe.ingredients > 0 then
+        local bundled = build_ltn_all_inputs_station_name(recipe.ingredients, qname)
+        if bundled ~= "" then
+            table.insert(schedule, { custom_station_name = bundled })
+        end
+    end
+
+    for _, v in ipairs(recipe.ingredients) do
+        local item = { name = v.name, type = v.type, quality = qname }
+        table.insert(schedule, { item = item, use_load_template = false })
+    end
+
+    return schedule
+end
+
 --- Loaders use ItemFilter for items only; recipe fluids are not item prototypes.
 ---@param cycle ItemCycle[]
 ---@return ItemCycle[]
@@ -472,9 +528,59 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
     end
 end
 
-local function rename_train_stop(station, player)
-    local station_name
+---@param station LuaEntity
+---@param player LuaPlayer|nil
+local function rename_train_stop_scheduled(station, player)
     local entity = storage.entity_data[station.unit_number]
+    if not entity or not entity.train_schedule or #entity.train_schedule == 0 then return end
+
+    if not entity.train_step_index or entity.train_step_index < 1 then
+        entity.train_step_index = 1
+    end
+
+    local step = entity.train_schedule[entity.train_step_index]
+    if not step then return end
+
+    local station_name
+    if step.custom_station_name then
+        station_name = step.custom_station_name
+    elseif step.item then
+        local item = step.item
+        local item_name
+        if config['use_Babelfish'] then
+            item_name = lib.find_name_in_babelfish_dictonary(item.name, item.type)
+        else
+            item_name = item.name
+        end
+        if step.use_load_template then
+            station_name = lib.parse_string(config['station_name_load'], { lib.parse_signal_to_rich_text(item), item_name })
+        else
+            station_name = lib.parse_string(config['station_name_unload'], { lib.parse_signal_to_rich_text(item), item_name })
+        end
+    else
+        return
+    end
+
+    if station.backer_name ~= station_name then
+        station.backer_name = station_name
+        if player then player.create_local_flying_text({ text = station.backer_name, position = station.position, color = lib.colors.white }) end
+    end
+
+    entity.train_step_index = entity.train_step_index + 1
+    if entity.train_step_index > #entity.train_schedule then
+        entity.train_step_index = 1
+    end
+end
+
+local function rename_train_stop(station, player)
+    local entity = storage.entity_data[station.unit_number]
+    if entity and entity.train_schedule and #entity.train_schedule > 0 then
+        rename_train_stop_scheduled(station, player)
+        return
+    end
+
+    local station_name
+    if not entity or not entity.cycle or not entity.cycle[entity.cycle_index] then return end
     local item = entity.cycle[entity.cycle_index]
 
     if (not item) then return end
@@ -506,6 +612,9 @@ local function update_station(to, cycle, player)
         entity.mode = "Load"
         entity.cycle = cycle
         entity.cycle_index = 1
+        entity.train_schedule = nil
+        entity.train_step_index = nil
+        entity.assembler_train_recipe_key = nil
     end
 
     rename_train_stop(to, player)
@@ -650,8 +759,45 @@ function Smarts.container_to_train_stop(from, to, player, special)
 end
 
 function Smarts.assembly_to_train_stop(from, to, player, special)
-    local cycle = assembly_cycle(from)
-    if #cycle > 0 then update_station(to, cycle, player) end
+    if settings.get_player_settings(player)["additional-paste-settings-options-train-stop-assembler-products-load-unload-then-input-unloads"].value then
+        local ltn_bundle = settings.get_player_settings(player)["additional-paste-settings-options-train-stop-assembler-ltn-inputs-bundle-step"].value
+        local schedule = assembler_train_schedule_from_recipe(from, player)
+        if #schedule == 0 then return end
+
+        local recipe, quality = from.get_recipe()
+        local recipe_key = recipe
+            and (
+                recipe.name
+                .. ":"
+                .. (quality and quality.name or "normal")
+                .. ":ltnB:"
+                .. (ltn_bundle and "1" or "0")
+            )
+            or ""
+
+        storage.entity_data[to.unit_number] = storage.entity_data[to.unit_number] or {}
+        local entity = storage.entity_data[to.unit_number]
+
+        if entity.assembler_train_recipe_key ~= recipe_key then
+            entity.train_schedule = schedule
+            entity.train_step_index = 1
+            entity.assembler_train_recipe_key = recipe_key
+        elseif not entity.train_schedule or #entity.train_schedule == 0 then
+            entity.train_schedule = schedule
+            entity.train_step_index = 1
+        end
+
+        rename_train_stop(to, player)
+    else
+        local entity = storage.entity_data[to.unit_number]
+        if entity then
+            entity.train_schedule = nil
+            entity.train_step_index = nil
+            entity.assembler_train_recipe_key = nil
+        end
+        local cycle = assembly_cycle(from)
+        if #cycle > 0 then update_station(to, cycle, player) end
+    end
 end
 
 function Smarts.assembly_to_transport_belt(from, to, player, special)
