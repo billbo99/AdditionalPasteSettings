@@ -28,9 +28,9 @@ local Smarts = {} ---@class Smarts
 local function container_cycle(entity)
     local cycle = {}
     if entity and entity.valid and entity.get_inventory(defines.inventory.chest) then
-        local inventory = lib.get_keys(entity.get_inventory(defines.inventory.chest).get_contents())
-        for _, v in pairs(inventory) do
-            table.insert(cycle, { name = v, type = "item" })
+        -- local inventory = lib.get_keys(entity.get_inventory(defines.inventory.chest).get_contents())
+        for _, v in pairs(entity.get_inventory(defines.inventory.chest).get_contents()) do
+            table.insert(cycle, { name = v.name, type = "item", quality = v.quality })
         end
     end
     return cycle
@@ -90,6 +90,20 @@ local function assembly_cycle(entity)
     end
 
     return cycle
+end
+
+--- Loaders use ItemFilter for items only; recipe fluids are not item prototypes.
+---@param cycle ItemCycle[]
+---@return ItemCycle[]
+local function cycle_for_loader_filters(cycle)
+    if not cycle then return {} end
+    local filtered = {}
+    for _, v in ipairs(cycle) do
+        if v.name and v.type ~= "fluid" and prototypes.item[v.name] then
+            table.insert(filtered, v)
+        end
+    end
+    return filtered
 end
 
 -- -----  Constant Combinator cycle
@@ -334,6 +348,20 @@ local function update_stack(mtype, multiplier, stack, previous_value, recipe, sp
     return 0
 end
 
+function Smarts.FindAvailableLogisticsSection(obj)
+    if obj and obj.valid and obj.get_requester_point() then
+        local requester_point = obj.get_requester_point()
+        if requester_point.enabled then
+            for _, section in pairs(requester_point.sections) do
+                if section.type == defines.logistic_section_type.manual then
+                    return section
+                end
+            end
+        end
+    end
+    return nil
+end
+
 function Smarts.EventBackupKey(src, dst)
     local key = {}
     key[1] = src.surface.name
@@ -419,7 +447,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
             local recipe, quality = from.get_recipe()
             local proto = prototypes.item[recipe.name]
             if proto then
-                to.storage_filter = proto
+                to.storage_filter = { name = proto.name, quality = quality.name }
                 msg = "Filter applied [img=item." .. from.get_recipe().name .. "]"
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
@@ -431,7 +459,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
                     end
                 end
                 if proto then
-                    to.storage_filter = proto
+                    to.storage_filter = { name = proto.name, quality = quality.name }
                     msg = "Filter applied [img=item." .. proto.name .. "]"
                     if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
                 end
@@ -663,6 +691,7 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
                     ctrl.connect_to_logistic_network = true
                 end
                 ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
+                storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
@@ -674,6 +703,7 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
                     ctrl.circuit_enable_disable = true
                 end
                 ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
+                storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
@@ -683,6 +713,11 @@ end
 
 local function set_loader_filter(loader, player)
     local entity = storage.entity_data[loader.unit_number]
+    if not entity then return end
+    entity.cycle = cycle_for_loader_filters(entity.cycle)
+    if #entity.cycle == 0 then return end
+    if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
+
     local item = entity.cycle[entity.cycle_index]
 
     if (not item) then return end
@@ -698,7 +733,8 @@ local function set_loader_filter(loader, player)
         loader.set_filter(idx, nil)
     end
 
-    loader.set_filter(1, item.name)
+    local filter = { name = item.name, quality = item.quality or "normal" }
+    loader.set_filter(1, filter)
     entity.cycle_index = entity.cycle_index + 1
     if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
 
@@ -707,6 +743,9 @@ local function set_loader_filter(loader, player)
 end
 
 local function update_loader(to, cycle, player)
+    cycle = cycle_for_loader_filters(cycle)
+    if #cycle == 0 then return end
+
     storage.entity_data[to.unit_number] = storage.entity_data[to.unit_number] or {}
     local entity = storage.entity_data[to.unit_number]
 
@@ -780,6 +819,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                     ctrl.connect_to_logistic_network = true
                 end
                 ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
+                storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
@@ -791,6 +831,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                     ctrl.circuit_enable_disable = true
                 end
                 ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
+                storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
                 if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
@@ -878,6 +919,8 @@ function Smarts.on_vanilla_paste(event)
     local src = event.source
     local dst = event.destination
 
+    if src.type == "inserter" and dst.type == "inserter" then return end
+
     local src_ctrl = src.get_or_create_control_behavior()
     local dst_ctrl = dst.get_or_create_control_behavior()
 
@@ -886,8 +929,16 @@ function Smarts.on_vanilla_paste(event)
     local player = game.get_player(event.player_index) ---@cast player LuaPlayer
 
     -- reapply old control behavior
-    if evt and evt.dst_ctrl then
-        for key, value in pairs(evt.dst_ctrl) do
+    if storage.control_behaviour[src.unit_number] then
+        for key, value in pairs(storage.control_behaviour[src.unit_number]) do
+            pcall(function()
+                src_ctrl[key] = value
+            end)
+        end
+    end
+
+    if storage.control_behaviour[dst.unit_number] then
+        for key, value in pairs(storage.control_behaviour[dst.unit_number]) do
             pcall(function()
                 dst_ctrl[key] = value
             end)
@@ -978,8 +1029,8 @@ function Smarts.on_vanilla_paste(event)
             end
         end
 
-        if dst.get_requester_point() and dst.get_requester_point().get_section(1) then
-            local section = dst.get_requester_point().get_section(1)
+        local section = Smarts.FindAvailableLogisticsSection(dst)
+        if section then
             for idx, _ in pairs(section.filters) do
                 section.clear_slot(idx)
             end
@@ -1006,7 +1057,7 @@ function Smarts.on_vanilla_paste(event)
         local pickup_target = inserter.pickup_target --@cast LuaEntity
         if pickup_target and pickup_target.type == "assembling-machine" then
             local recipe, quality = pickup_target.get_recipe()
-            if recipe and recipe.products[1] then
+            if recipe and recipe.products[1] and recipe.products[1].type ~= 'fluid' then
                 for i = 1, inserter.filter_slot_count do inserter.set_filter(i, nil) end
                 inserter.set_filter(1, { name = recipe.products[1].name, quality = quality.name })
             end

@@ -1,4 +1,31 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.13
+Date: 2026.04.04
+  Bugfixes:
+    - Skip recipe fluids when pasting assembler settings to loaders (avoids crash e.g. Space Exploration coolants)
+---------------------------------------------------------------------------------------------------
+Version: 2.0.12
+Date: 2025.07.17
+  Bugfixes:
+    - Fixed a problem when pasting to an inserter with fluid as the product
+---------------------------------------------------------------------------------------------------
+Version: 2.0.11
+Date: 2024.12.07
+  Changes:
+    - Use vanilla behaviour for copy/paste between inserters
+    - RU locale
+---------------------------------------------------------------------------------------------------
+Version: 2.0.10
+Date: 2024.11.26
+  Changes:
+    - Use 2.0.22 change to LuaEntity::storage_filter so that the quality can be set too.
+---------------------------------------------------------------------------------------------------
+Version: 2.0.9
+Date: 2024.11.16
+  Bugfixes:
+    - Copying from chest to loader
+    - Revisted caching control behaviour settings when "on_vanilla_paste" event occurs
+---------------------------------------------------------------------------------------------------
 Version: 2.0.8
 Date: 2024.11.09
   Changes:
