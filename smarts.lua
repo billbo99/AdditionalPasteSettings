@@ -711,6 +711,105 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
     end
 end
 
+--- Preserve order, drop duplicate name+quality (for filling every loader filter from a recipe).
+---@param cycle ItemCycle[]
+---@return ItemCycle[]
+local function dedupe_item_cycles_preserve_order(cycle)
+    if not cycle then return {} end
+    local seen = {}
+    local out = {}
+    for _, v in ipairs(cycle) do
+        if v.name then
+            local q = v.quality or "normal"
+            local key = v.name .. "^" .. q
+            if not seen[key] then
+                seen[key] = true
+                table.insert(out, v)
+            end
+        end
+    end
+    return out
+end
+
+---@param loader LuaEntity
+---@param items ItemCycle[]
+---@param player LuaPlayer|nil
+local function apply_all_loader_filter_slots(loader, items, player)
+    for idx = 1, loader.filter_slot_count do
+        loader.set_filter(idx, nil)
+    end
+    local n = math.min(loader.filter_slot_count, #items)
+    for idx = 1, n do
+        local v = items[idx]
+        loader.set_filter(idx, { name = v.name, quality = v.quality or "normal" })
+    end
+    if player and n > 0 then
+        local msg = "Filters " .. n .. "/" .. loader.filter_slot_count
+        player.create_local_flying_text({ text = msg, position = loader.position, color = lib.colors.white })
+    end
+end
+
+--- Copy control behaviour fields that exist on both entities (pcall skips unsupported keys).
+---@param from LuaEntity
+---@param to LuaEntity
+local function paste_control_behavior_between(from, to)
+    local from_cb = from.get_or_create_control_behavior()
+    local to_cb = to.get_or_create_control_behavior()
+    local copied = Smarts.CopyControlBehavior(from_cb)
+    for key, value in pairs(copied) do
+        pcall(function()
+            to_cb[key] = value
+        end)
+    end
+end
+
+--- Collect non-empty filters in slot order (compact gaps).
+---@param entity LuaEntity
+---@return { name: string, quality: string }[]
+local function get_entity_filters_compact(entity)
+    local filters = {}
+    for idx = 1, entity.filter_slot_count do
+        local f = entity.get_filter(idx)
+        if f and f.name then
+            table.insert(filters, { name = f.name, quality = f.quality or "normal" })
+        end
+    end
+    return filters
+end
+
+---@param from LuaEntity
+---@param to LuaEntity
+---@param player LuaPlayer|nil
+local function paste_filters_between_entities(from, to, player)
+    for idx = 1, to.filter_slot_count do
+        to.set_filter(idx, nil)
+    end
+    local list = get_entity_filters_compact(from)
+    local n = math.min(to.filter_slot_count, #list)
+    for idx = 1, n do
+        local f = list[idx]
+        to.set_filter(idx, { name = f.name, quality = f.quality })
+    end
+    if to.type == "inserter" then
+        to.use_filters = n > 0
+    end
+    if player and n > 0 then
+        player.create_local_flying_text({ text = "Filters " .. n .. "/" .. to.filter_slot_count, position = to.position, color = lib.colors.white })
+    end
+end
+
+function Smarts.loader_to_inserter(from, to, player, special)
+    if not from.valid or not to.valid then return end
+    paste_control_behavior_between(from, to)
+    paste_filters_between_entities(from, to, player)
+end
+
+function Smarts.inserter_to_loader(from, to, player, special)
+    if not from.valid or not to.valid then return end
+    paste_control_behavior_between(from, to)
+    paste_filters_between_entities(from, to, player)
+end
+
 local function set_loader_filter(loader, player)
     local entity = storage.entity_data[loader.unit_number]
     if not entity then return end
@@ -752,14 +851,35 @@ local function update_loader(to, cycle, player)
     if entity == nil or entity.cycle == nil or (not table.compare(cycle, entity.cycle)) then
         entity.cycle = cycle
         entity.cycle_index = 1
+        entity.assembly_paste_key = nil
     end
 
     set_loader_filter(to, player)
 end
 
+--- First paste from this assembler+recipe fills every loader filter slot; further pastes rotate one filter (slot 1) like before.
 function Smarts.assembly_to_loader(from, to, player, special)
     local cycle = assembly_cycle(from)
-    if #cycle > 0 then update_loader(to, cycle, player) end
+    cycle = cycle_for_loader_filters(cycle)
+    cycle = dedupe_item_cycles_preserve_order(cycle)
+    if #cycle == 0 then return end
+
+    local recipe, recipe_quality = from.get_recipe()
+    local quality_name = recipe_quality and recipe_quality.name or "normal"
+    local recipe_name = recipe and recipe.name or ""
+    local asm_key = tostring(from.unit_number) .. ":" .. recipe_name .. ":" .. quality_name
+
+    storage.entity_data[to.unit_number] = storage.entity_data[to.unit_number] or {}
+    local entity = storage.entity_data[to.unit_number]
+    entity.cycle = cycle
+
+    if entity.assembly_paste_key == asm_key then
+        set_loader_filter(to, player)
+    else
+        entity.q = 1
+        entity.assembly_paste_key = asm_key
+        apply_all_loader_filter_slots(to, cycle, player)
+    end
 end
 
 -- function Smarts.constant_combinator_to_loader(from, to, player, special)
@@ -1129,6 +1249,11 @@ Smarts.actions = {
     -- ["decider-combinator|loader-1x1"] = Smarts.decider_arithmetic_combinator_to_loader,
     -- ["constant-combinator|loader-1x1"] = Smarts.constant_combinator_to_loader,
     ["assembling-machine|loader-1x1"] = Smarts.assembly_to_loader,
+
+    ["loader|inserter"] = Smarts.loader_to_inserter,
+    ["inserter|loader"] = Smarts.inserter_to_loader,
+    ["loader-1x1|inserter"] = Smarts.loader_to_inserter,
+    ["inserter|loader-1x1"] = Smarts.inserter_to_loader,
 
     --  To Decider combinator
     -- ["container|decider-combinator"] = Smarts.container_to_decider_arithmetic_combinator,
