@@ -92,6 +92,52 @@ local function assembly_cycle(entity)
     return cycle
 end
 
+--- Prefer fluid already in entity; else pumpjack from oil patch; else storage-tank fluidbox filter.
+---@param entity LuaEntity
+---@return string?
+local function primary_fluid_name(entity)
+    if not entity.valid then return nil end
+    local contents = entity.get_fluid_contents()
+    if contents then
+        local best_name, best_amt = nil, 0
+        for fname, amt in pairs(contents) do
+            if amt > best_amt then
+                best_amt = amt
+                best_name = fname
+            end
+        end
+        if best_name then return best_name end
+    end
+    local fluid = entity.get_fluid(1)
+    if fluid and fluid.name then return fluid.name end
+    if entity.type == "mining-drill" and entity.name == "pumpjack" then
+        local tgt = entity.mining_target
+        if tgt and tgt.valid then
+            local mp = tgt.prototype.mineable_properties
+            if mp and mp.products then
+                for _, prod in pairs(mp.products) do
+                    if prod.type == "fluid" and prod.name then
+                        return prod.name
+                    end
+                end
+            end
+        end
+    end
+    if entity.type == "storage-tank" and entity.fluidbox then
+        local filt = entity.fluidbox.get_filter(1)
+        if filt and filt.name then return filt.name end
+    end
+    return nil
+end
+
+---@param entity LuaEntity
+---@return ItemCycle[]
+local function fluid_storage_cycle(entity)
+    local name = primary_fluid_name(entity)
+    if not name then return {} end
+    return { { name = name, type = "fluid", quality = "normal" } }
+end
+
 ---@param ingredients table[]
 ---@param qname string
 ---@return string
@@ -477,9 +523,17 @@ end
 ---@return string
 local function entity_action_type(ent)
     if ent.valid and ent.type == "entity-ghost" and ent.ghost_type then
-        return ent.ghost_type
+        local gt = ent.ghost_type
+        if gt == "mining-drill" and ent.ghost_name == "pumpjack" then
+            return "pumpjack"
+        end
+        return gt
     end
-    return ent.type
+    local t = ent.type
+    if t == "mining-drill" and ent.name == "pumpjack" then
+        return "pumpjack"
+    end
+    return t
 end
 
 --- Prototype of built entity; for `entity-ghost`, the inner ghost target.
@@ -776,6 +830,32 @@ end
 function Smarts.container_to_train_stop(from, to, player, special)
     local cycle = container_cycle(from)
     if #cycle > 0 then update_station(to, cycle, player) end
+end
+
+function Smarts.storage_tank_to_train_stop(from, to, player, special)
+    local cycle = fluid_storage_cycle(from)
+    if #cycle > 0 then update_station(to, cycle, player) end
+end
+
+function Smarts.pumpjack_to_pump(from, to, player, special)
+    local fluid_name = primary_fluid_name(from)
+    if not fluid_name then
+        if player and player.valid then
+            player.create_local_flying_text({
+                text = "No fluid (pumpjack needs oil patch or buffer)",
+                position = to.position,
+                color = lib.colors.white,
+            })
+        end
+        return
+    end
+    local fb = to.fluidbox
+    if not fb or not fb.set_filter then return end
+    local ok = fb.set_filter(1, { name = fluid_name })
+    if player and player.valid then
+        local msg = ok and ("Pump filter: [fluid=" .. fluid_name .. "]") or "Could not set pump filter"
+        player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white })
+    end
 end
 
 function Smarts.assembly_to_train_stop(from, to, player, special)
@@ -1463,6 +1543,8 @@ Smarts.actions = {
     -- ["arithmetic-combinator|train-stop"] = Smarts.decider_arithmetic_combinator_to_train_stop,
     ["container|train-stop"] = Smarts.container_to_train_stop,
     ["assembling-machine|train-stop"] = Smarts.assembly_to_train_stop,
+    ["storage-tank|train-stop"] = Smarts.storage_tank_to_train_stop,
+    ["pumpjack|pump"] = Smarts.pumpjack_to_pump,
 
     --  Loader support
     ["container|loader"] = Smarts.container_to_loader,

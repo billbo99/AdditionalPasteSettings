@@ -1,0 +1,8 @@
+# Local Python virtual environment (Windows: Lib + Scripts in repo root)
+/Lib/
+/Scripts/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class

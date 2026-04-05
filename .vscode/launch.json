@@ -6,7 +6,7 @@
             "request": "launch",
             "name": "Factorio Mod Debug",
             "adjustMods": {
-                "AdditionalPasteSettings": true
+                "AdditionalPasteSettingsErnest": true
             },
             "modsPath": "D:\\dev\\mods_AdditionalPasteSettings",
             "disableExtraMods": false,
@@ -14,7 +14,7 @@
             "hookMode": "debug",
             "hookData": false,
             "hookControl": [
-                "AdditionalPasteSettings"
+                "AdditionalPasteSettingsErnest"
             ],
         }
     ]
