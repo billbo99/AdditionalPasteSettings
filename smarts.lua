@@ -1244,7 +1244,8 @@ function Smarts.on_vanilla_pre_paste(event)
     local dst_proto = entity_effective_prototype(dst)
     if entity_action_type(src) == "assembling-machine" and entity_action_type(dst) == "logistic-container" and (dst_proto.logistic_mode == "requester" or dst_proto.logistic_mode == "buffer") then
         if evt ~= nil then
-            local rows = dst.get_requester_point().filters
+            local requester_point = dst.get_requester_point()
+            local rows = requester_point and requester_point.filters
             if rows then
                 for _, row in pairs(rows) do
                     local name = row.name .. "^" .. row.quality
