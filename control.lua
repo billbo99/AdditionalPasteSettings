@@ -7,6 +7,7 @@ local Smarts = require("smarts")
 local function init_globals()
     -- enity_deta_data
 
+    storage.control_behaviour = storage.control_behaviour or {}
     storage.event_backup = storage.event_backup or {}
     storage.entity_data = storage.entity_data or {} ---@type table<uint, EntityData>
     storage.locale_dictionaries = storage.locale_dictionaries or {}
