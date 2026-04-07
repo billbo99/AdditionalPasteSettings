@@ -545,6 +545,23 @@ local function entity_effective_prototype(ent)
     return ent.prototype
 end
 
+--- Read recipe from real assembler or assembler ghost.
+---@param ent LuaEntity
+---@return LuaRecipe?|LuaRecipePrototype?, LuaQualityPrototype?
+local function get_entity_recipe_and_quality(ent)
+    if not ent or not ent.valid then return nil, nil end
+    local ok, recipe, quality = pcall(function()
+        return ent.get_recipe()
+    end)
+    if ok and recipe then
+        return recipe, quality
+    end
+    if ent.type == "entity-ghost" and ent.ghost_recipe then
+        return ent.ghost_recipe, ent.quality
+    end
+    return nil, nil
+end
+
 function Smarts.clear_inserter_settings(from, to, player, special)
     local clear_inserter_flag = settings.get_player_settings(player)["additional-paste-settings-paste-clear-inserter-filter-on-paste-over"].value
     if from == to and clear_inserter_flag then
@@ -1486,10 +1503,12 @@ function Smarts.on_vanilla_paste(event)
         local inserter = dst
         local pickup_target = inserter.pickup_target --@cast LuaEntity
         if pickup_target and entity_action_type(pickup_target) == "assembling-machine" then
-            local recipe, quality = pickup_target.get_recipe()
+            local recipe, quality = get_entity_recipe_and_quality(pickup_target)
             if recipe and recipe.products[1] and recipe.products[1].type ~= 'fluid' then
+                local qname = (quality and quality.name) or "normal"
                 for i = 1, inserter.filter_slot_count do inserter.set_filter(i, nil) end
-                inserter.set_filter(1, { name = recipe.products[1].name, quality = quality.name })
+                inserter.set_filter(1, { name = recipe.products[1].name, quality = qname })
+                inserter.use_filters = true
             end
         end
     end
