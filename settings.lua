@@ -58,6 +58,19 @@ data:extend(
         },
         {
             type = "string-setting",
+            name = "additional-paste-settings-options-inserter-filter-mode",
+            setting_type = "runtime-per-user",
+            allow_blank = false,
+            allowed_values = {
+                "additional-paste-settings-inserter-filter-mode-product",
+                "additional-paste-settings-inserter-filter-mode-ingredient",
+                "additional-paste-settings-inserter-filter-mode-switch"
+            },
+            default_value = "additional-paste-settings-inserter-filter-mode-switch",
+            order = "cbc"
+        },
+        {
+            type = "string-setting",
             name = "additional-paste-settings-options-transport_belt-multiplier-type",
             setting_type = "runtime-per-user",
             allow_blank = false,

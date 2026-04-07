@@ -998,6 +998,80 @@ local function dedupe_item_cycles_preserve_order(cycle)
     return out
 end
 
+---@param player LuaPlayer|nil
+---@return string
+local function get_inserter_filter_mode(player)
+    if not player or not player.valid then
+        return "additional-paste-settings-inserter-filter-mode-switch"
+    end
+    local mode = settings.get_player_settings(player)["additional-paste-settings-options-inserter-filter-mode"].value
+    if mode ~= "additional-paste-settings-inserter-filter-mode-product"
+        and mode ~= "additional-paste-settings-inserter-filter-mode-ingredient"
+        and mode ~= "additional-paste-settings-inserter-filter-mode-switch" then
+        return "additional-paste-settings-inserter-filter-mode-switch"
+    end
+    return mode
+end
+
+---@param recipe LuaRecipe|LuaRecipePrototype
+---@param quality LuaQualityPrototype?
+---@param mode string
+---@return ItemCycle[]
+local function build_inserter_filter_cycle_from_recipe(recipe, quality, mode)
+    local cycle = {}
+    if not recipe then return cycle end
+    local qname = (quality and quality.name) or "normal"
+
+    local function add_item_products()
+        for _, v in pairs(recipe.products or {}) do
+            if v.type ~= "fluid" and v.name and prototypes.item[v.name] then
+                table.insert(cycle, { name = v.name, type = "item", quality = qname })
+            end
+        end
+    end
+
+    local function add_item_ingredients()
+        for _, v in pairs(recipe.ingredients or {}) do
+            if v.type ~= "fluid" and v.name and prototypes.item[v.name] then
+                table.insert(cycle, { name = v.name, type = "item", quality = qname })
+            end
+        end
+    end
+
+    if mode == "additional-paste-settings-inserter-filter-mode-product" then
+        add_item_products()
+    elseif mode == "additional-paste-settings-inserter-filter-mode-ingredient" then
+        add_item_ingredients()
+    else
+        add_item_products()
+        add_item_ingredients()
+    end
+
+    return dedupe_item_cycles_preserve_order(cycle)
+end
+
+---@param inserter LuaEntity
+---@param recipe LuaRecipe|LuaRecipePrototype
+---@param quality LuaQualityPrototype?
+---@param mode string
+---@return ItemCycle|nil
+local function pick_vanilla_inserter_filter_item(inserter, recipe, quality, mode)
+    if not inserter or not inserter.valid or not recipe then return nil end
+    local cycle = build_inserter_filter_cycle_from_recipe(recipe, quality, mode)
+    if #cycle == 0 then return nil end
+    if mode ~= "additional-paste-settings-inserter-filter-mode-switch" then
+        return cycle[1]
+    end
+
+    storage.entity_data[inserter.unit_number] = storage.entity_data[inserter.unit_number] or {}
+    local entity_data = storage.entity_data[inserter.unit_number]
+    entity_data.vanilla_filter_cycle_index = (entity_data.vanilla_filter_cycle_index or 0) + 1
+    if entity_data.vanilla_filter_cycle_index > #cycle then
+        entity_data.vanilla_filter_cycle_index = 1
+    end
+    return cycle[entity_data.vanilla_filter_cycle_index]
+end
+
 ---@param loader LuaEntity
 ---@param items ItemCycle[]
 ---@param player LuaPlayer|nil
@@ -1278,9 +1352,8 @@ function Smarts.assembly_to_inserter(from, to, player, special)
         end
 
         -- Item filters: first paste fills all slots from recipe; same assembler+recipe then rotates slot 1 (like loader).
-        local filter_cycle = assembly_cycle(from)
-        filter_cycle = cycle_for_loader_filters(filter_cycle)
-        filter_cycle = dedupe_item_cycles_preserve_order(filter_cycle)
+        local filter_mode = get_inserter_filter_mode(player)
+        local filter_cycle = build_inserter_filter_cycle_from_recipe(fromRecipe, quality, filter_mode)
         if #filter_cycle > 0 then
             local quality_name = quality and quality.name or "normal"
             local asm_key = tostring(from.unit_number) .. ":" .. fromRecipe.name .. ":" .. quality_name
@@ -1504,10 +1577,11 @@ function Smarts.on_vanilla_paste(event)
         local pickup_target = inserter.pickup_target --@cast LuaEntity
         if pickup_target and entity_action_type(pickup_target) == "assembling-machine" then
             local recipe, quality = get_entity_recipe_and_quality(pickup_target)
-            if recipe and recipe.products[1] and recipe.products[1].type ~= 'fluid' then
-                local qname = (quality and quality.name) or "normal"
+            local filter_mode = get_inserter_filter_mode(player)
+            local item = pick_vanilla_inserter_filter_item(inserter, recipe, quality, filter_mode)
+            if item then
                 for i = 1, inserter.filter_slot_count do inserter.set_filter(i, nil) end
-                inserter.set_filter(1, { name = recipe.products[1].name, quality = qname })
+                inserter.set_filter(1, { name = item.name, quality = item.quality or "normal" })
                 inserter.use_filters = true
             end
         end
