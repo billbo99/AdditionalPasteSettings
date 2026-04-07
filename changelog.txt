@@ -1,18 +1,23 @@
 ---------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------
 Version: 2.0.15
 Date: 2026.04.07
+  Credits:
+    - CoreNest
   Bugfixes:
     - Ghost assembler -> ghost inserter smart filter now uses assembler recipe product (e.g. heating-tower) instead of vanilla ingredient filters.
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.14
 Date: 2026.04.05
+  Credits:
+    - CoreNest
   Changes:
     - Copy from pumpjack to pump: sets the pump fluid filter (from buffer, or from the oil patch via mining target)
     - Copy from storage tank to train stop: station naming cycle using the tank fluid (same hotkey flow as chest/assembler)
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.13
 Date: 2026.04.04
+  Credits:
+    - CoreNest
   Bugfixes:
     - Skip recipe fluids when pasting assembler settings to loaders (avoids crash e.g. Space Exploration coolants)
 ---------------------------------------------------------------------------------------------------
