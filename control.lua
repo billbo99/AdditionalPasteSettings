@@ -11,6 +11,7 @@ local function init_globals()
     storage.event_backup = storage.event_backup or {}
     storage.entity_data = storage.entity_data or {} ---@type table<uint, EntityData>
     storage.locale_dictionaries = storage.locale_dictionaries or {}
+    storage.flying_text = storage.flying_text or {}
 end
 
 local function register_events()

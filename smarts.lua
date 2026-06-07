@@ -19,6 +19,25 @@ local Smarts = {} ---@class Smarts
 ---@field cycle_index int
 
 
+local function flying_text(msg)
+    table.insert(storage.flying_text, msg)
+end
+
+local function publish_flying_text(player)
+    if not player or not player.valid then return end
+    local msg = ""
+    local location = player.position
+    for _, ft in pairs(storage.flying_text) do
+        if msg ~= "" then
+            msg = msg .. "\n" .. ft.text
+        else
+            msg = ft.text
+            location = ft.position
+        end
+    end
+    player.create_local_flying_text({ text = msg, position = location, color = lib.colors.white })
+    storage.flying_text = {}
+end
 --------------------------------------------------------------------------------------------------------------
 ----------  Local cycle functions
 
@@ -600,7 +619,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
             if proto then
                 to.storage_filter = { name = proto.name, quality = quality.name }
                 msg = "Filter applied [img=item." .. from.get_recipe().name .. "]"
-                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
                 local products = from.get_recipe().products
                 for _, product in pairs(products) do
@@ -612,7 +631,7 @@ function Smarts.assembly_to_logistic_chest(from, to, player, special)
                 if proto then
                     to.storage_filter = { name = proto.name, quality = quality.name }
                     msg = "Filter applied [img=item." .. proto.name .. "]"
-                    if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                    if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
                 end
             end
         end
@@ -654,7 +673,7 @@ local function rename_train_stop_scheduled(station, player)
 
     if station.backer_name ~= station_name then
         station.backer_name = station_name
-        if player then player.create_local_flying_text({ text = station.backer_name, position = station.position, color = lib.colors.white }) end
+        if player then flying_text({ text = station.backer_name, position = station.position, color = lib.colors.white }) end
     end
 
     entity.train_step_index = entity.train_step_index + 1
@@ -691,7 +710,7 @@ local function rename_train_stop(station, player)
 
     if station.backer_name ~= station_name then
         station.backer_name = station_name
-        if player then player.create_local_flying_text({ text = station.backer_name, position = station.position, color = lib.colors.white }) end
+        if player then flying_text({ text = station.backer_name, position = station.position, color = lib.colors.white }) end
     end
 end
 
@@ -858,7 +877,7 @@ function Smarts.pumpjack_to_pump(from, to, player, special)
     local fluid_name = primary_fluid_name(from)
     if not fluid_name then
         if player and player.valid then
-            player.create_local_flying_text({
+            flying_text({
                 text = "No fluid (pumpjack needs oil patch or buffer)",
                 position = to.position,
                 color = lib.colors.white,
@@ -871,7 +890,7 @@ function Smarts.pumpjack_to_pump(from, to, player, special)
     local ok = fb.set_filter(1, { name = fluid_name })
     if player and player.valid then
         local msg = ok and ("Pump filter: [fluid=" .. fluid_name .. "]") or "Could not set pump filter"
-        player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white })
+        flying_text({ text = msg, position = to.position, color = lib.colors.white })
     end
 end
 
@@ -960,7 +979,7 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
                 ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
                 storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
-                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
                 if ctrl.circuit_enable_disable and ctrl.circuit_condition["first_signal"]["name"] == product then
                     if ctrl.circuit_condition["constant"] ~= nil then
@@ -972,7 +991,7 @@ function Smarts.assembly_to_transport_belt(from, to, player, special)
                 ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product }, constant = amount }
                 storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
-                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
         end
     end
@@ -1086,7 +1105,7 @@ local function apply_all_loader_filter_slots(loader, items, player)
     end
     if player and n > 0 then
         local msg = "Filters " .. n .. "/" .. loader.filter_slot_count
-        player.create_local_flying_text({ text = msg, position = loader.position, color = lib.colors.white })
+        flying_text({ text = msg, position = loader.position, color = lib.colors.white })
     end
 end
 
@@ -1135,7 +1154,7 @@ local function paste_filters_between_entities(from, to, player)
         to.use_filters = n > 0
     end
     if player and n > 0 then
-        player.create_local_flying_text({ text = "Filters " .. n .. "/" .. to.filter_slot_count, position = to.position, color = lib.colors.white })
+        flying_text({ text = "Filters " .. n .. "/" .. to.filter_slot_count, position = to.position, color = lib.colors.white })
     end
 end
 
@@ -1182,7 +1201,7 @@ local function set_loader_filter(loader, player)
     if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
 
     local msg = "Apply filter " .. "[img=item." .. item.name .. "]"
-    if player then player.create_local_flying_text({ text = msg, position = loader.position, color = lib.colors.white }) end
+    if player then flying_text({ text = msg, position = loader.position, color = lib.colors.white }) end
 end
 
 ---@param inserter LuaEntity
@@ -1202,7 +1221,7 @@ local function apply_all_inserter_filter_slots(inserter, items, player)
         inserter.use_filters = true
     end
     if player and n > 0 then
-        player.create_local_flying_text({ text = "Filters " .. n .. "/" .. inserter.filter_slot_count, position = inserter.position, color = lib.colors.white })
+        flying_text({ text = "Filters " .. n .. "/" .. inserter.filter_slot_count, position = inserter.position, color = lib.colors.white })
     end
 end
 
@@ -1228,7 +1247,7 @@ local function set_inserter_cycle_filter(inserter, player)
     if entity.cycle_index > #entity.cycle then entity.cycle_index = 1 end
 
     local msg = "Apply filter " .. "[img=item." .. item.name .. "]"
-    if player then player.create_local_flying_text({ text = msg, position = inserter.position, color = lib.colors.white }) end
+    if player then flying_text({ text = msg, position = inserter.position, color = lib.colors.white }) end
 end
 
 local function update_loader(to, cycle, player)
@@ -1335,7 +1354,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                 ctrl.logistic_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
                 storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
-                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             else
                 if ctrl.circuit_enable_disable and ctrl.circuit_condition and ctrl.circuit_condition.first_signal and ctrl.circuit_condition.first_signal.name == product then
                     if ctrl.logistic_condition["constant"] ~= nil then
@@ -1347,7 +1366,7 @@ function Smarts.assembly_to_inserter(from, to, player, special)
                 ctrl.circuit_condition = { comparator = comparator, first_signal = { type = "item", name = product, quality = quality.name }, constant = amount }
                 storage.control_behaviour[to.unit_number] = Smarts.CopyControlBehavior(ctrl)
                 local msg = "[img=item." .. product .. "] " .. comparator .. " " .. math.floor(amount)
-                if player then player.create_local_flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
+                if player then flying_text({ text = msg, position = to.position, color = lib.colors.white }) end
             end
         end
 
@@ -1380,6 +1399,7 @@ function Smarts.on_hotkey_pressed(event)
     end
 
     if player ~= nil and player.connected then
+        storage.flying_text = {}
         local from = player.entity_copy_source
         local to = player.selected
 
@@ -1390,6 +1410,9 @@ function Smarts.on_hotkey_pressed(event)
             if act ~= nil then
                 act(from, to, player, special)
             end
+        end
+        if storage.flying_text ~= {} then
+            publish_flying_text(player)
         end
     end
 end
